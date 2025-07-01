@@ -1,21 +1,18 @@
 # Woodpecker CI Deploy Pipeline for Discord Emoji Bot
-# This pipeline handles production deployments
+# This pipeline handles production deployments with simplified DinD
 
-# Only run on main branch and tags
 when:
   - event: [push, tag]
     branch: main
 
 services:
   - name: docker
-    image: docker:dind
+    image: docker:24-dind
     privileged: true
     environment:
-      DOCKER_TLS_CERTDIR: /dind-certs
+      DOCKER_TLS_CERTDIR: ""  # Disable TLS for simplicity
     volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
-    ports:
-      - 2376
+      - /var/lib/docker
 
 steps:
   # Pre-deployment checks
@@ -42,33 +39,27 @@ steps:
 
   # Build production image
   - name: build-production
-    image: docker:24
+    image: docker:24-cli
     environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
-    volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      DOCKER_HOST: tcp://docker:2375  # Use non-TLS port
     commands:
       - echo "🏗️ Building production Docker image for Discord Emoji Bot..."
+      - sleep 10  # Wait for Docker daemon to be ready
+      - docker info  # Test connection
       - docker build -t discord-emoji-bot:production-${CI_COMMIT_SHA} .
       - docker tag discord-emoji-bot:production-${CI_COMMIT_SHA} discord-emoji-bot:production-latest
       - echo "✅ Discord Emoji Bot production image built!"
 
   # Deploy using docker-compose
   - name: deploy-with-compose
-    image: docker:24
+    image: docker:24-cli
     detach: true
     environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
+      DOCKER_HOST: tcp://docker:2375
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:
         from_secret: OPENAI_API_KEY
-    volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
     commands:
       - export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
       - export OPENAI_API_KEY="${OPENAI_API_KEY}"
@@ -89,13 +80,9 @@ steps:
 
   # Health check
   - name: health-check
-    image: docker:24
+    image: docker:24-cli
     environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
-    volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      DOCKER_HOST: tcp://docker:2375
     commands:
       - echo "🏥 Running health checks for Discord Emoji Bot..."
       - sleep 30  # Wait for Discord bot container to start
@@ -116,13 +103,9 @@ steps:
 
   # Cleanup old images
   - name: cleanup
-    image: docker:24
+    image: docker:24-cli
     environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
-    volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      DOCKER_HOST: tcp://docker:2375
     when:
       - branch: main
     commands:
@@ -130,5 +113,3 @@ steps:
       - docker image prune -f
       - docker images | grep discord-emoji-bot || echo "No old images to clean"
       - echo "✅ Cleanup completed!"
-
-# Removed services and volumes sections due to trust level restrictions
