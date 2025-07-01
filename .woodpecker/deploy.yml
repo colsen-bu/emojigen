@@ -74,7 +74,7 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🏥 Running health checks for Discord Emoji Bot..."
-      - sleep 34  # Wait for Discord bot container to start
+      - sleep 39  # Wait for Discord bot container to start
       - |
         # List all running containers to debug
         echo "📋 Currently running containers:"
