@@ -118,9 +118,6 @@ async def generate_emoji_reaction(
 class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
     """Modal dialog for collecting emoji generation parameters."""
 
-    emoji_name = discord.ui.TextInput(
-        label="Emoji Name", placeholder="happycat", max_length=32
-    )
     prompt = discord.ui.TextInput(
         label="Prompt for Image Generation",
         style=discord.TextStyle.paragraph,
@@ -132,28 +129,32 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         super().__init__()
         self.target_message = target_message
 
-    def sanitize_emoji_name(self, name: str) -> str:
-        """Sanitize emoji name to meet Discord requirements."""
+    def sanitize_emoji_name(self, name: str, guild: discord.Guild) -> str:
+        """Sanitize emoji name to meet Discord requirements and ensure uniqueness."""
         import re
 
         # Discord emoji name requirements:
         # - 2-32 characters
         # - Only alphanumeric characters and underscores
         # - Cannot start or end with underscore
-        # Remove invalid characters and convert to lowercase
         sanitized = re.sub(r"[^a-zA-Z0-9_]", "", name.lower())
-
-        # Remove leading/trailing underscores
         sanitized = sanitized.strip("_")
 
         # Ensure it's not empty and within length limits
         if not sanitized or len(sanitized) < 2:
-            # Generate a fallback name
             sanitized = "custom_emoji"
         elif len(sanitized) > 32:
             sanitized = sanitized[:32].rstrip("_")
 
-        return sanitized
+        # Ensure the name is unique within the guild
+        existing_names = {emoji.name for emoji in guild.emojis}
+        original_name = sanitized
+        counter = 1
+        while sanitized in existing_names:
+            sanitized = f"{original_name}_{counter}"
+            counter += 1
+            if len(sanitized) > 32:  # Ensure it doesn't exceed the length limit
+                sanitized = sanitized[:32].rstrip("_")
 
     async def on_submit(self, interaction: discord.Interaction):
         """Handle modal submission and generate emoji reaction."""
@@ -176,6 +177,10 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
             "Designed to be recognizable at small size. Prompt: "
         )
         final_prompt = EMOJI_STYLE_PREFIX + self.prompt.value
+
+        # Extract the first word from the prompt for the emoji name
+        first_word = self.prompt.value.split()[0] if self.prompt.value.split() else "emoji"
+        sanitized_name = self.sanitize_emoji_name(first_word)
 
         # Generate image with DALL-E
         try:
@@ -214,15 +219,6 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         except Exception as e:
             # If PIL fails, use original image (Discord will auto-resize)
             print(f"⚠️ Image resize failed, using original: {e}")
-
-        # Sanitize emoji name to meet Discord requirements
-        sanitized_name = self.sanitize_emoji_name(self.emoji_name.value)
-
-        if not sanitized_name:
-            return await interaction.followup.send(
-                "❌ Invalid emoji name. Must be 2-32 characters, alphanumeric and underscores only.",
-                ephemeral=True,
-            )
 
         # Create custom emoji on the server
         try:
