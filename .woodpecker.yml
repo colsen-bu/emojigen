@@ -2,15 +2,11 @@
 # Woodpecker CI Pipeline for Discord Emoji Bot
 # This pipeline builds, tests, and deploys the Discord bot
 
-variables:
-  - &python_image 'python:3.11-slim'
-  - &docker_image 'docker:24-dind'
-
 # Define the pipeline steps
 steps:
   # Step 1: Code Quality and Linting
   - name: lint
-    image: *python_image
+    image: python:3.11-slim
     commands:
       - apt-get update && apt-get install -y gcc
       - pip install --upgrade pip
@@ -34,7 +30,7 @@ steps:
 
   # Step 2: Security Scanning
   - name: security-scan
-    image: *python_image
+    image: python:3.11-slim
     commands:
       - pip install --upgrade pip
       - pip install bandit safety
@@ -49,7 +45,7 @@ steps:
 
   # Step 3: Build Docker Image
   - name: build
-    image: *docker_image
+    image: docker:24-dind
     environment:
       - DOCKER_HOST=tcp://docker:2376
       - DOCKER_TLS_CERTDIR=/certs
@@ -67,7 +63,7 @@ steps:
 
   # Step 4: Test Docker Container
   - name: test-container
-    image: *docker_image
+    image: docker:24-dind
     environment:
       - DOCKER_HOST=tcp://docker:2376
       - DOCKER_TLS_CERTDIR=/certs
@@ -90,14 +86,12 @@ steps:
         import discord_emoji
         print('✅ Bot imports successfully')
         print('✅ All dependencies loaded')
-        " || echo "⚠️ Container test completed \
-        (expected to fail with dummy credentials)"
-        (expected to fail with dummy credentials)"
+        " || echo "⚠️ Container test completed (expected to fail)"
       - echo "✅ Container tests completed!"
 
   # Step 5: Generate Deployment Package
   - name: package
-    image: *docker_image
+    image: docker:24-dind
     environment:
       - DOCKER_HOST=tcp://docker:2376
       - DOCKER_TLS_CERTDIR=/certs
@@ -116,7 +110,7 @@ steps:
 
   # Step 6: Deploy (only on main branch)
   - name: deploy
-    image: *docker_image
+    image: docker:24-dind
     environment:
       - DOCKER_HOST=tcp://docker:2376
       - DOCKER_TLS_CERTDIR=/certs
@@ -136,7 +130,7 @@ steps:
           # 3. Update running containers
           # Example deployment commands (customize for your setup):
           # docker tag emoji-bot:${CI_COMMIT_SHA} \
-          your-registry/emoji-bot:${CI_COMMIT_SHA}
+          #   your-registry/emoji-bot:${CI_COMMIT_SHA}
           # docker push your-registry/emoji-bot:${CI_COMMIT_SHA}
           echo "✅ Production deployment completed!"
         else
@@ -147,7 +141,7 @@ steps:
 
   # Step 7: Notification (runs on success/failure)
   - name: notify
-    image: *python_image
+    image: python:3.11-slim
     commands:
       - echo "📢 Pipeline completed for commit ${CI_COMMIT_SHA}"
       - echo "🏷️  Branch: ${CI_COMMIT_BRANCH}"
@@ -185,10 +179,8 @@ volumes:
 # Pipeline triggers
 when:
   event: [push, pull_request, tag]
-
-# Matrix builds for different Python versions (optional)
-# matrix:
-#   PYTHON_VERSION:
-#     - "3.10"
-#     - "3.11"
-#     - "3.12"
+  # matrix:
+  #   PYTHON_VERSION:
+  #     - "3.10"
+  #     - "3.11"
+  #     - "3.12"
