@@ -5,6 +5,11 @@
 when:
   - event: [push, pull_request, tag, manual]
 
+services:
+  - name: docker
+    image: docker:dind
+    privileged: true
+
 steps:
   # Quick code validation
   - name: quick-test

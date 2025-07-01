@@ -6,6 +6,11 @@ when:
   - event: [push, tag]
     branch: main
 
+services:
+  - name: docker
+    image: docker:dind
+    privileged: true
+
 steps:
   # Pre-deployment checks
   - name: pre-deploy-check
