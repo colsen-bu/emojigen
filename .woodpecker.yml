@@ -5,9 +5,5 @@ steps:
     image: alpine:latest
     commands:
       - echo "Hello from Woodpecker CI!"
-      - echo "Repository: ${CI_REPO}"
-      - echo "Branch: ${CI_COMMIT_BRANCH}"
-      - echo "Commit: ${CI_COMMIT_SHA}"
-
-when:
-  event: [push, pull_request]
+    when:
+      event: [push, pull_request]
