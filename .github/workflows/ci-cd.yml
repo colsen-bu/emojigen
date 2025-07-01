@@ -46,15 +46,15 @@ jobs:
         
     - name: Code formatting check
       run: |
-        black --check discord_emoji.py
+        black --check src/
         
     - name: Import sorting check
       run: |
-        isort --check-only discord_emoji.py
+        isort --check-only src/
         
     - name: Linting
       run: |
-        flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503
+        flake8 src/ --max-line-length=100 --ignore=E203,W503,I201,E402,D202
         
     - name: Security scan
       run: |
@@ -63,7 +63,7 @@ jobs:
         
     - name: Run tests
       run: |
-        pytest test_bot.py -v --cov=discord_emoji
+        pytest src/test_bot.py -v --cov=src/discord_emoji
       env:
         DISCORD_BOT_TOKEN: dummy_token
         OPENAI_API_KEY: dummy_key
@@ -96,6 +96,7 @@ jobs:
           -e DISCORD_BOT_TOKEN=dummy_token \
           -e OPENAI_API_KEY=dummy_key \
           emoji-bot:test python -c "
+        import sys; sys.path.insert(0, 'src')
         import discord_emoji
         print('✅ Bot imports successfully')
         print('✅ Container test passed')

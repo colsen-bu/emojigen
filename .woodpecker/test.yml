@@ -10,7 +10,7 @@ steps:
       - apt-get update && apt-get install -y gcc
       - pip install --upgrade pip
       - pip install -r requirements.txt
-      - python -c "import discord_emoji; print('✅ Bot imports successfully')"
+      - python -c "import sys; sys.path.insert(0, 'src'); import discord_emoji; print('✅ Bot imports successfully')"
       - python -c "import discord; import openai; import aiohttp; from PIL import Image; print('✅ All dependencies available')"
       - echo "✅ Quick tests passed!"
 
@@ -19,7 +19,7 @@ steps:
     image: python:3.11-slim
     commands:
       - echo "🔍 Checking Python syntax..."
-      - python -m py_compile discord_emoji.py
+      - python -m py_compile src/discord_emoji.py
       - echo "✅ Syntax check passed!"
 
   # Docker build test
