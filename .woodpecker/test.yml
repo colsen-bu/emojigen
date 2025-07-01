@@ -1,0 +1,59 @@
+# Woodpecker CI Test Pipeline
+# This is a simpler pipeline for testing and development
+
+steps:
+  # Quick code validation
+  - name: quick-test
+    image: python:3.11-slim
+    commands:
+      - echo "🔍 Running quick validation tests..."
+      - apt-get update && apt-get install -y gcc
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+      - python -c "import discord_emoji; print('✅ Bot imports successfully')"
+      - python -c "import discord; import openai; import aiohttp; from PIL import Image; print('✅ All dependencies available')"
+      - echo "✅ Quick tests passed!"
+
+  # Syntax and basic checks
+  - name: syntax-check
+    image: python:3.11-slim
+    commands:
+      - echo "🔍 Checking Python syntax..."
+      - python -m py_compile discord_emoji.py
+      - echo "✅ Syntax check passed!"
+
+  # Docker build test
+  - name: docker-build-test
+    image: docker:24-dind
+    environment:
+      - DOCKER_HOST=tcp://docker:2376
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_CERT_PATH=/certs/client
+    volumes:
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+    commands:
+      - echo "🏗️ Testing Docker build..."
+      - docker build -t emoji-bot-test:${CI_COMMIT_SHA} .
+      - echo "✅ Docker build test completed!"
+
+services:
+  - name: docker
+    image: docker:24-dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+
+volumes:
+  - name: docker-certs-ca
+    temp: {}
+  - name: docker-certs-client
+    temp: {}
+
+# Trigger on all events
+when:
+  event: [push, pull_request, tag, manual]
