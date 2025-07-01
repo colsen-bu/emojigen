@@ -28,34 +28,10 @@ steps:
 
   # Docker build test
   - name: docker-build-test
-    image: docker:24-dind
-    environment:
-      DOCKER_HOST: tcp://docker:2376
-      DOCKER_TLS_CERTDIR: /certs
-      DOCKER_TLS_VERIFY: "1"
-      DOCKER_CERT_PATH: /certs/client
-    volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
+    image: docker:24
     commands:
       - echo "🏗️ Testing Docker build..."
       - docker build -t emoji-bot-test:${CI_COMMIT_SHA} .
       - echo "✅ Docker build test completed!"
 
-services:
-  - name: docker
-    image: docker:24-dind
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: /certs
-    volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
-
-volumes:
-  - name: docker-certs-ca
-    temp: {}
-  - name: docker-certs-client
-    temp: {}
-
-# Moved to top of file
+# Removed services and volumes sections due to trust level restrictions

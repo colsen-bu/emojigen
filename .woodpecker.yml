@@ -48,15 +48,7 @@ steps:
 
   # Step 3: Build Docker Image
   - name: build
-    image: docker:24-dind
-    environment:
-      DOCKER_HOST: tcp://docker:2376
-      DOCKER_TLS_CERTDIR: /certs
-      DOCKER_TLS_VERIFY: "1"
-      DOCKER_CERT_PATH: /certs/client
-    volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
+    image: docker:24
     commands:
       - echo "🏗️ Building Discord Emoji Bot Docker image..."
       - docker build -t emoji-bot:${CI_COMMIT_SHA} .
@@ -66,17 +58,10 @@ steps:
 
   # Step 4: Test Docker Container
   - name: test-container
-    image: docker:24-dind
+    image: docker:24
     environment:
-      DOCKER_HOST: tcp://docker:2376
-      DOCKER_TLS_CERTDIR: /certs
-      DOCKER_TLS_VERIFY: "1"
-      DOCKER_CERT_PATH: /certs/client
       DISCORD_BOT_TOKEN: dummy_token_for_testing
       OPENAI_API_KEY: dummy_api_key_for_testing
-    volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
     commands:
       - echo "🧪 Testing Docker container startup..."
       - |
@@ -94,15 +79,7 @@ steps:
 
   # Step 5: Generate Deployment Package
   - name: package
-    image: docker:24-dind
-    environment:
-      DOCKER_HOST: tcp://docker:2376
-      DOCKER_TLS_CERTDIR: /certs
-      DOCKER_TLS_VERIFY: "1"
-      DOCKER_CERT_PATH: /certs/client
-    volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
+    image: docker:24
     commands:
       - echo "📦 Creating deployment package..."
       - docker save emoji-bot:${CI_COMMIT_SHA} | \
@@ -113,15 +90,7 @@ steps:
 
   # Step 6: Deploy (only on main branch)
   - name: deploy
-    image: docker:24-dind
-    environment:
-      DOCKER_HOST: tcp://docker:2376
-      DOCKER_TLS_CERTDIR: /certs
-      DOCKER_TLS_VERIFY: "1"
-      DOCKER_CERT_PATH: /certs/client
-    volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
+    image: docker:24
     commands:
       - echo "🚀 Deploying Discord Emoji Bot..."
       - |
@@ -160,31 +129,4 @@ steps:
     when:
       - status: [success, failure]
 
-# Services for Docker-in-Docker
-services:
-  - name: docker
-    image: docker:24-dind
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: /certs
-    volumes:
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
-    commands:
-      - dockerd-entrypoint.sh
-
-# Define named volumes
-volumes:
-  - name: docker-certs-ca
-    temp: {}
-  - name: docker-certs-client
-    temp: {}
-
-# Pipeline triggers moved to top of file
-# when:
-#   event: [push, pull_request, tag]
-# matrix:
-#   PYTHON_VERSION:
-#     - "3.10"
-#     - "3.11"
-#     - "3.12"
+# Removed services and volumes sections due to trust level restrictions
