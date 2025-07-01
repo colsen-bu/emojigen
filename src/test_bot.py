@@ -32,10 +32,7 @@ class TestEmojiBot:
             import importlib
 
             importlib.reload(discord_emoji)
-            assert True @ patch.dict(
-                os.environ,
-                {"DISCORD_BOT_TOKEN": "test_token", "OPENAI_API_KEY": "test_key"},
-            )
+            assert True
 
     def test_emoji_name_sanitization(self):
         """Test emoji name sanitization functionality."""
