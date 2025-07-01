@@ -3,7 +3,10 @@
 steps:
   - name: hello
     image: alpine:latest
+    environment:
+      GREETING: "Hello"
     commands:
-      - echo "Hello from Woodpecker CI!"
-    when:
-      event: [push, pull_request]
+      - echo "${GREETING} from Woodpecker 3.x!"
+      - echo "Repository: ${CI_REPO}"
+      - echo "Branch: ${CI_COMMIT_BRANCH}"
+      - echo "Commit: ${CI_COMMIT_SHA}"
