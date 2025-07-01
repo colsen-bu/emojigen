@@ -76,7 +76,7 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🏥 Running health checks for Discord Emoji Bot..."
-      - sleep 30  # Wait for Discord bot container to start
+      - sleep 45  # Wait for Discord bot container to start
       - |
         # Check if Discord bot container is running
         if docker ps | grep discord-emoji-bot; then

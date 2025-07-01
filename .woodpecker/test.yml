@@ -1,20 +1,10 @@
 # Woodpecker CI Test Pipeline for Discord Emoji Bot
 # This is a simpler pipeline for testing and development
+# Using Host Docker Socket (More Reliable on Oracle Cloud)
 
 # Trigger on all events
 when:
   - event: [push, pull_request, tag, manual]
-
-services:
-  - name: docker
-    image: docker:dind
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: /dind-certs
-    volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
-    ports:
-      - 2376
 
 steps:
   # Quick code validation
@@ -40,17 +30,14 @@ steps:
       - python -m py_compile src/discord_emoji.py
       - echo "✅ Discord Emoji Bot syntax check passed!"
 
-  # Docker build test
+  # Docker build test using host Docker
   - name: docker-build-test
-    image: docker:24
-    environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
+    image: docker:24-cli
     volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🏗️ Testing Docker build for Discord Emoji Bot..."
+      - docker info  # Test connection
       - docker build -t discord-emoji-bot-test:${CI_COMMIT_SHA} .
       - echo "✅ Discord Emoji Bot Docker build test completed!"
 

@@ -1,17 +1,7 @@
 ---
 # Woodpecker CI Pipeline for Discord Emoji Bot
 # This pipeline builds, tests, and deploys the Discord bot
-
-services:
-  - name: docker
-    image: docker:dind
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: /dind-certs
-    volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
-    ports:
-      - 2376
+# Using Host Docker Socket (More Reliable on Oracle Cloud)
 
 # Define the pipeline steps
 when:
@@ -57,17 +47,14 @@ steps:
           echo "⚠️ Potential security issues detected"
       - echo "✅ Security scans completed!"
 
-  # Step 3: Build Docker Image
+  # Step 3: Build Docker Image using host Docker
   - name: build
-    image: docker:24
-    environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
+    image: docker:24-cli
     volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🏗️ Building Discord Emoji Bot Docker image..."
+      - docker info  # Test connection
       - docker build -t emoji-bot:${CI_COMMIT_SHA} .
       - docker build -t emoji-bot:latest .
       - echo "✅ Docker image built successfully!"
@@ -75,17 +62,14 @@ steps:
 
   # Step 4: Test Docker Container
   - name: test-container
-    image: docker:24
+    image: docker:24-cli
     environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:
         from_secret: OPENAI_API_KEY
     volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🧪 Testing Docker container startup..."
       - echo "Debug: DISCORD_BOT_TOKEN length: ${#DISCORD_BOT_TOKEN}"
@@ -104,13 +88,9 @@ steps:
 
   # Step 5: Generate Deployment Package
   - name: package
-    image: docker:24
-    environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
+    image: docker:24-cli
     volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "📦 Creating deployment package..."
       - docker save emoji-bot:${CI_COMMIT_SHA} | \
@@ -121,17 +101,14 @@ steps:
 
   # Step 6: Deploy (only on main branch)
   - name: deploy
-    image: docker:24
+    image: docker:24-cli
     environment:
-      DOCKER_HOST: 'tcp://docker:2376'
-      DOCKER_CERT_PATH: '/dind-certs/client'
-      DOCKER_TLS_VERIFY: '1'
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:
         from_secret: OPENAI_API_KEY
     volumes:
-      - /opt/woodpeckerci/dind-certs:/dind-certs
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🚀 Deploying Discord Emoji Bot..."
       - |
