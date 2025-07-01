@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose configuration for Discord Emoji Bot
 
 services:
   discord-emoji-bot:
@@ -8,9 +8,7 @@ services:
     environment:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GUILD_ID=${GUILD_ID}
-    env_file:
-      - .env
+      - GUILD_ID=${GUILD_ID:-}
     networks:
       - bot-network
     logging:

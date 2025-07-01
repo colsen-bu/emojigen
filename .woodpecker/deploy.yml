@@ -80,20 +80,28 @@ steps:
         echo "📋 Currently running containers:"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
       - |
-        # Check if any Discord bot container is running (more flexible search)
-        if docker ps --format "{{.Names}}" | grep -E "(discord|emoji|bot)" || docker ps --format "{{.Image}}" | grep -E "(discord|emoji)"; then
+        # Check specifically for emoji-bot container (from docker-compose.yml)
+        echo "🔍 Looking for emoji-bot container..."
+        if docker ps --format "{{.Names}}" | grep -q "emoji-bot"; then
           echo "✅ Discord Emoji Bot container is running"
-          # Get the actual container name/ID for logs
-          CONTAINER_NAME=$(docker ps --format "{{.Names}}" | grep -E "(discord|emoji|bot)" | head -1)
-          if [ -z "$CONTAINER_NAME" ]; then
-            CONTAINER_NAME=$(docker ps --format "{{.Names}}" | head -1)
-          fi
-          echo "📄 Container logs for: $CONTAINER_NAME"
-          docker logs "$CONTAINER_NAME" --tail 20
+          docker logs emoji-bot --tail 20
         else
-          echo "❌ Discord Emoji Bot container is not running"
-          echo "📋 All containers:"
-          docker ps -a
+          echo "❌ emoji-bot container is not running"
+          echo "📋 All containers (including stopped):"
+          docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+          echo ""
+          echo "🔍 Checking if emoji-bot container exists at all:"
+          if docker ps -a --format "{{.Names}}" | grep -q "emoji-bot"; then
+            echo "📄 Found stopped emoji-bot container, checking logs:"
+            docker logs emoji-bot --tail 50
+            echo ""
+            echo "� Container status:"
+            docker inspect emoji-bot --format='Status: {{.State.Status}}, Error: {{.State.Error}}, ExitCode: {{.State.ExitCode}}'
+          else
+            echo "❌ No emoji-bot container found at all"
+            echo "� Checking what docker-compose created:"
+            docker-compose ps -a
+          fi
           exit 1
         fi
       - echo "✅ Discord Emoji Bot health check passed!"
