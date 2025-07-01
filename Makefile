@@ -7,7 +7,23 @@
 help:
 	@echo "Discord Emoji Bot - Available Commands:"
 	@echo ""
-	@echo "Development:"
+	@echo "Virtual Environment:"
+	@echo "  venv-install    - Create virtual environment and install dependencies"
+	@echo "  venv-clean      - Remove virtual environment"
+	@echo "  venv-info       - Show virtual environment information"
+	@echo "  venv-activate   - Show how to activate virtual environment"
+	@echo "  venv-shell      - Start interactive shell in virtual environment"
+	@echo ""
+	@echo "Virtual Environment Development:"
+	@echo "  venv-dev        - Run bot in virtual environment"
+	@echo "  venv-test       - Run tests in virtual environment"
+	@echo "  venv-lint       - Run linting in virtual environment"
+	@echo "  venv-format     - Format code in virtual environment"
+	@echo "  venv-security   - Run security scans in virtual environment"
+	@echo "  venv-ci-test    - Run complete CI pipeline in virtual environment"
+	@echo "  venv-build      - Build Docker image"
+	@echo ""
+	@echo "Development (Global/Auto-detect):"
 	@echo "  install     - Install production dependencies"
 	@echo "  install-dev - Install development dependencies"
 	@echo "  test        - Run tests"
@@ -42,7 +58,7 @@ test:
 
 lint:
 	@echo "🔍 Running linting checks..."
-	flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503
+	flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503,I201
 	@echo "✅ Linting passed!"
 
 format:
@@ -155,3 +171,97 @@ health:
 	@if [ -f .env ]; then echo "✅ .env file exists"; else echo "⚠️ .env file missing"; fi
 	@if command -v docker >/dev/null 2>&1; then echo "✅ Docker available"; else echo "⚠️ Docker not found"; fi
 	@echo "✅ Health check completed!"
+
+# Virtual Environment Management
+VENV_DIR = venv
+VENV_ACTIVATE = $(VENV_DIR)/bin/activate
+PYTHON_VENV = $(VENV_DIR)/bin/python
+PIP_VENV = $(VENV_DIR)/bin/pip
+
+# Check if we're in a virtual environment
+VENV_ACTIVE := $(shell python -c "import sys; print('1' if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix) else '0')")
+
+# Virtual Environment commands
+venv-create:
+	@echo "🐍 Creating Python virtual environment..."
+	python3 -m venv $(VENV_DIR)
+	@echo "✅ Virtual environment created!"
+
+venv-install: venv-create
+	@echo "📦 Installing dependencies in virtual environment..."
+	$(PIP_VENV) install --upgrade pip
+	$(PIP_VENV) install -r requirements.txt
+	$(PIP_VENV) install -r requirements-dev.txt
+	@echo "✅ Dependencies installed!"
+
+venv-clean:
+	@echo "🗑️  Removing virtual environment..."
+	rm -rf $(VENV_DIR)
+	@echo "✅ Virtual environment removed!"
+
+venv-info:
+	@echo "📋 Virtual Environment Information:"
+	@if [ -d "$(VENV_DIR)" ]; then \
+		echo "✅ Virtual environment exists at: $(VENV_DIR)"; \
+		echo "🐍 Python version: $$($(PYTHON_VENV) --version)"; \
+		echo "📦 Pip version: $$($(PIP_VENV) --version)"; \
+		echo "📍 Python path: $$($(PYTHON_VENV) -c 'import sys; print(sys.executable)')"; \
+	else \
+		echo "❌ Virtual environment not found. Run 'make venv-install' to create it."; \
+	fi
+
+venv-activate:
+	@echo "⚡ To activate the virtual environment, run:"
+	@echo "   source $(VENV_ACTIVATE)"
+
+# Virtual Environment Development Commands
+venv-dev:
+	@echo "🚀 Starting bot in virtual environment..."
+	@if [ ! -f .env ]; then echo "❌ .env file not found! Copy .env.example to .env and fill in your tokens."; exit 1; fi
+	source $(VENV_ACTIVATE) && python discord_emoji.py
+
+venv-test:
+	@echo "🧪 Running tests in virtual environment..."
+	source $(VENV_ACTIVATE) && pytest test_bot.py -v --cov=discord_emoji --cov-report=term-missing
+
+venv-lint:
+	@echo "🔍 Running linting in virtual environment..."
+	source $(VENV_ACTIVATE) && flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503,I201
+
+venv-format:
+	@echo "🎨 Formatting code in virtual environment..."
+	source $(VENV_ACTIVATE) && black discord_emoji.py test_bot.py
+	source $(VENV_ACTIVATE) && isort discord_emoji.py test_bot.py
+
+venv-security:
+	@echo "🔒 Running security scans in virtual environment..."
+	source $(VENV_ACTIVATE) && bandit -r . -f json || true
+	source $(VENV_ACTIVATE) && safety check || echo "⚠️  Some dependencies may have vulnerabilities"
+
+venv-ci-test: venv-install venv-format venv-lint venv-security venv-test
+	@echo "✅ Virtual environment CI test pipeline completed!"
+
+venv-build:
+	@echo "🏗️ Building Docker image with virtual environment..."
+	docker build -t emoji-bot:venv-latest .
+
+venv-shell:
+	@echo "🐚 Starting shell in virtual environment..."
+	@echo "Use 'deactivate' to exit the virtual environment"
+	bash --rcfile <(echo '. ~/.bashrc; source $(VENV_ACTIVATE); echo "🐍 Virtual environment activated!"')
+
+# Auto-detect environment and use appropriate commands
+ifeq ($(VENV_ACTIVE),1)
+    # We're already in a virtual environment, use direct commands
+    PYTHON_CMD = python
+    PIP_CMD = pip
+else
+    # Not in virtual environment, check if venv exists and use it
+    ifeq ($(shell test -d $(VENV_DIR) && echo "exists"),exists)
+        PYTHON_CMD = source $(VENV_ACTIVATE) &&
+        PIP_CMD = source $(VENV_ACTIVATE) && pip
+    else
+        PYTHON_CMD = python
+        PIP_CMD = pip
+    endif
+endif

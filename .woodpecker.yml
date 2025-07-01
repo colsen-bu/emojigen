@@ -20,7 +20,7 @@ steps:
       - echo "🔍 Running import sorting checks..."
       - isort --check-only discord_emoji.py || (echo "❌ Import sorting issues found. Run 'isort discord_emoji.py' to fix." && exit 1)
       - echo "🔍 Running linting checks..."
-      - flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503
+      - flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503,I201
       - echo "✅ Code quality checks passed!"
 
   # Step 2: Security Scanning

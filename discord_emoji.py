@@ -1,9 +1,12 @@
+"""Discord Emoji Bot - Generate custom emojis using OpenAI's DALL-E API."""
+
+import os
+
+import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
-import aiohttp
 from openai import OpenAI
-import os
 
 # Configuration from environment
 DISCORD_BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
@@ -17,14 +20,19 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 
+
 class EmojiBot(commands.Bot):
+    """Discord bot for generating custom emojis using OpenAI's DALL-E API."""
+
     def __init__(self):
+        """Initialize the EmojiBot with required intents and settings."""
         super().__init__(command_prefix="!", intents=intents)
         self.synced_guilds = set()
 
     async def setup_hook(self):
+        """Set up the bot by adding commands and syncing to guilds."""
         self.tree.add_command(generate_emoji_reaction)
-        
+
         # If GUILD_ID is specified, sync to that guild immediately (for testing)
         if GUILD_ID and GUILD_ID.strip():
             try:
@@ -36,7 +44,7 @@ class EmojiBot(commands.Bot):
                 print("⚠️  Invalid GUILD_ID format")
 
     async def on_guild_join(self, guild):
-        """Sync commands immediately when bot joins a new server"""
+        """Sync commands immediately when bot joins a new server."""
         if guild.id not in self.synced_guilds:
             try:
                 await self.tree.sync(guild=guild)
@@ -46,9 +54,10 @@ class EmojiBot(commands.Bot):
                 print(f"❌ Failed to sync commands to {guild.name}: {e}")
 
     async def on_ready(self):
+        """Handle bot ready event and sync commands to all guilds."""
         print(f"✅ Logged in as {self.user}")
         print(f"📊 Connected to {len(self.guilds)} server(s)")
-        
+
         # Sync commands to all current guilds if not already synced
         for guild in self.guilds:
             if guild.id not in self.synced_guilds:
@@ -59,10 +68,12 @@ class EmojiBot(commands.Bot):
                 except discord.HTTPException as e:
                     print(f"❌ Failed to sync to {guild.name}: {e}")
 
+
 bot = EmojiBot()
 
+
 async def get_response_channel(guild, current_channel):
-    """Get the appropriate channel for bot responses"""
+    """Get the appropriate channel for bot responses."""
     # Check if a specific response channel is configured
     if RESPONSE_CHANNEL:
         # Try by channel ID first
@@ -70,83 +81,93 @@ async def get_response_channel(guild, current_channel):
             channel = guild.get_channel(int(RESPONSE_CHANNEL))
             if channel:
                 return channel
-        
+
         # Try by channel name
         for channel in guild.text_channels:
             if channel.name.lower() == RESPONSE_CHANNEL.lower():
                 return channel
-    
+
     # Check if bot can send messages in current channel
     permissions = current_channel.permissions_for(guild.me)
     if permissions.send_messages:
         return current_channel
-    
+
     # Find any channel where bot can send messages
     for channel in guild.text_channels:
         perms = channel.permissions_for(guild.me)
         if perms.send_messages:
             return channel
-    
+
     return None
+
 
 @bot.event
 async def on_ready():
+    """Handle bot ready event - delegated to bot class."""
     pass  # Handled in the bot class
 
+
 @app_commands.context_menu(name="Generate Emoji Reaction")
-async def generate_emoji_reaction(interaction: discord.Interaction, message: discord.Message):
+async def generate_emoji_reaction(
+    interaction: discord.Interaction, message: discord.Message
+):
+    """Context menu command to generate emoji reactions for messages."""
     await interaction.response.send_modal(EmojiPromptModal(target_message=message))
 
+
 class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
+    """Modal dialog for collecting emoji generation parameters."""
+
     emoji_name = discord.ui.TextInput(
-        label="Emoji Name",
-        placeholder="happycat",
-        max_length=32
+        label="Emoji Name", placeholder="happycat", max_length=32
     )
     prompt = discord.ui.TextInput(
         label="Prompt for Image Generation",
         style=discord.TextStyle.paragraph,
-        placeholder="A cute smiling orange cat emoji"
+        placeholder="A cute smiling orange cat emoji",
     )
 
     def __init__(self, target_message: discord.Message):
+        """Initialize modal with target message for emoji reaction."""
         super().__init__()
         self.target_message = target_message
 
     def sanitize_emoji_name(self, name: str) -> str:
-        """Sanitize emoji name to meet Discord requirements"""
+        """Sanitize emoji name to meet Discord requirements."""
         import re
-        
+
         # Discord emoji name requirements:
         # - 2-32 characters
         # - Only alphanumeric characters and underscores
         # - Cannot start or end with underscore
-        
         # Remove invalid characters and convert to lowercase
-        sanitized = re.sub(r'[^a-zA-Z0-9_]', '', name.lower())
-        
+        sanitized = re.sub(r"[^a-zA-Z0-9_]", "", name.lower())
+
         # Remove leading/trailing underscores
-        sanitized = sanitized.strip('_')
-        
+        sanitized = sanitized.strip("_")
+
         # Ensure it's not empty and within length limits
         if not sanitized or len(sanitized) < 2:
             # Generate a fallback name
             sanitized = "custom_emoji"
         elif len(sanitized) > 32:
-            sanitized = sanitized[:32].rstrip('_')
-        
+            sanitized = sanitized[:32].rstrip("_")
+
         return sanitized
 
     async def on_submit(self, interaction: discord.Interaction):
+        """Handle modal submission and generate emoji reaction."""
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         # Find appropriate response channel
-        response_channel = await get_response_channel(interaction.guild, interaction.channel)
-        
+        response_channel = await get_response_channel(
+            interaction.guild, interaction.channel
+        )
+
         if not response_channel:
             return await interaction.followup.send(
-                "❌ I don't have permission to send messages in any channel.", 
-                ephemeral=True
+                "❌ I don't have permission to send messages in any channel.",
+                ephemeral=True,
             )
 
         # Style injection for better emoji generation
@@ -159,16 +180,12 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         # Generate image with DALL-E
         try:
             response = openai_client.images.generate(
-                model="dall-e-3",
-                prompt=final_prompt,
-                n=1,
-                size="1024x1024"
+                model="dall-e-3", prompt=final_prompt, n=1, size="1024x1024"
             )
             image_url = response.data[0].url
         except Exception as e:
             return await interaction.followup.send(
-                f"❌ Failed to generate image: {e}", 
-                ephemeral=True
+                f"❌ Failed to generate image: {e}", ephemeral=True
             )
 
         # Download and resize the generated image for emoji use
@@ -176,23 +193,23 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
             async with session.get(image_url) as resp:
                 if resp.status != 200:
                     return await interaction.followup.send(
-                        "❌ Could not download image.", 
-                        ephemeral=True
+                        "❌ Could not download image.", ephemeral=True
                     )
                 image_data = await resp.read()
-        
+
         # Resize image to 128x128 for optimal emoji size
         try:
-            from PIL import Image
             import io
-            
+
+            from PIL import Image
+
             # Open and resize the image
             image = Image.open(io.BytesIO(image_data))
             image = image.resize((128, 128), Image.Resampling.LANCZOS)
-            
+
             # Convert to bytes for Discord
             output = io.BytesIO()
-            image.save(output, format='PNG')
+            image.save(output, format="PNG")
             image_data = output.getvalue()
         except Exception as e:
             # If PIL fails, use original image (Discord will auto-resize)
@@ -200,31 +217,31 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
         # Sanitize emoji name to meet Discord requirements
         sanitized_name = self.sanitize_emoji_name(self.emoji_name.value)
-        
+
         if not sanitized_name:
             return await interaction.followup.send(
-                "❌ Invalid emoji name. Must be 2-32 characters, alphanumeric and underscores only.", 
-                ephemeral=True
+                "❌ Invalid emoji name. Must be 2-32 characters, alphanumeric and underscores only.",
+                ephemeral=True,
             )
 
         # Create custom emoji on the server
         try:
-            emoji = await interaction.guild.create_custom_emoji(name=sanitized_name, image=image_data)
+            emoji = await interaction.guild.create_custom_emoji(
+                name=sanitized_name, image=image_data
+            )
         except discord.Forbidden:
             return await interaction.followup.send(
-                "❌ I don't have permission to add emojis.", 
-                ephemeral=True
+                "❌ I don't have permission to add emojis.", ephemeral=True
             )
         except discord.HTTPException as e:
             return await interaction.followup.send(
-                f"❌ Failed to create emoji '{sanitized_name}': {e}", 
-                ephemeral=True
+                f"❌ Failed to create emoji '{sanitized_name}': {e}", ephemeral=True
             )
 
         # Add emoji reaction to the target message
         try:
             await self.target_message.add_reaction(emoji)
-            
+
             # Send success message to appropriate channel (respects permissions)
             success_message = (
                 f"✅ **Emoji Generated by {interaction.user.mention}**\n"
@@ -232,27 +249,25 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
                 f"in {self.target_message.channel.mention} with :{emoji.name}: !\n"
                 f"🗑️ Emoji will be deleted shortly to save space."
             )
-            
+
             # Send to the response channel (respects Discord permissions)
             await response_channel.send(success_message)
-            
+
             # Send ephemeral confirmation to user
             await interaction.followup.send(
-                f"✅ Emoji added! Response sent to {response_channel.mention}", 
-                ephemeral=True
+                f"✅ Emoji added! Response sent to {response_channel.mention}",
+                ephemeral=True,
             )
-            
+
         except discord.HTTPException as e:
-            await interaction.followup.send(
-                f"❌ Failed to react: {e}", 
-                ephemeral=True
-            )
+            await interaction.followup.send(f"❌ Failed to react: {e}", ephemeral=True)
 
         # Clean up emoji to save server space
         try:
             await emoji.delete()
         except discord.HTTPException:
             pass
+
 
 if __name__ == "__main__":
     bot.run(DISCORD_BOT_TOKEN)
