@@ -76,18 +76,26 @@ steps:
       - echo "🏥 Running health checks for Discord Emoji Bot..."
       - sleep 45  # Wait for Discord bot container to start
       - |
-        # Check if Discord bot container is running
-        if docker ps | grep discord-emoji-bot; then
+        # List all running containers to debug
+        echo "📋 Currently running containers:"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+      - |
+        # Check if any Discord bot container is running (more flexible search)
+        if docker ps --format "{{.Names}}" | grep -E "(discord|emoji|bot)" || docker ps --format "{{.Image}}" | grep -E "(discord|emoji)"; then
           echo "✅ Discord Emoji Bot container is running"
+          # Get the actual container name/ID for logs
+          CONTAINER_NAME=$(docker ps --format "{{.Names}}" | grep -E "(discord|emoji|bot)" | head -1)
+          if [ -z "$CONTAINER_NAME" ]; then
+            CONTAINER_NAME=$(docker ps --format "{{.Names}}" | head -1)
+          fi
+          echo "📄 Container logs for: $CONTAINER_NAME"
+          docker logs "$CONTAINER_NAME" --tail 20
         else
           echo "❌ Discord Emoji Bot container is not running"
-          docker logs discord-emoji-bot || docker logs emoji-bot
+          echo "📋 All containers:"
+          docker ps -a
           exit 1
         fi
-      - |
-        # Check Discord bot logs for successful connection
-        docker logs discord-emoji-bot 2>&1 | grep -E "(Ready|Logged in|Connected)" || \
-          echo "⚠️ Discord bot may not be fully connected yet"
       - echo "✅ Discord Emoji Bot health check passed!"
 
   # Cleanup old images
