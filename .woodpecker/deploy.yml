@@ -41,12 +41,15 @@ steps:
   # Deploy using docker-compose
   - name: deploy-with-compose
     image: docker:24
+    detach: true
     environment:
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:
         from_secret: OPENAI_API_KEY
     commands:
+      - export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
+      - export OPENAI_API_KEY="${OPENAI_API_KEY}"
       - echo "🚀 Deploying Discord Emoji Bot with docker-compose..."
       - |
         # Install docker-compose
@@ -58,8 +61,6 @@ steps:
         sed -i "s|build: \.|image: discord-emoji-bot:production-${CI_COMMIT_SHA}|" docker-compose.yml
       - |
         # Deploy the Discord bot application
-        export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
-        export OPENAI_API_KEY="${OPENAI_API_KEY}"
         docker-compose down || true
         docker-compose up -d
       - echo "✅ Discord Emoji Bot deployment completed!"
@@ -88,6 +89,8 @@ steps:
   # Cleanup old images
   - name: cleanup
     image: docker:24
+    when:
+      - branch: main
     commands:
       - echo "🧹 Cleaning up old Discord Emoji Bot Docker images..."
       - docker image prune -f
