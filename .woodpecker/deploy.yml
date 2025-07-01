@@ -87,10 +87,16 @@ steps:
           echo "📄 Recent container logs:"
           docker logs emoji-bot --tail 30
           echo ""
-          echo "🔧 Debugging token format (showing only first/last characters for security):"
-          docker exec emoji-bot sh -c 'echo "Token length: ${#DISCORD_BOT_TOKEN}"'
-          docker exec emoji-bot sh -c 'echo "Token starts with: $(echo $DISCORD_BOT_TOKEN | cut -c1-10)..."'
-          docker exec emoji-bot sh -c 'echo "Token ends with: ...$(echo $DISCORD_BOT_TOKEN | tail -c 10)"'
+          echo "� Container status:"
+          docker inspect emoji-bot --format='Status: {{.State.Status}}, Restarting: {{.State.Restarting}}, RestartCount: {{.RestartCount}}'
+          echo ""
+          echo "🔧 Environment variables from docker inspect:"
+          docker inspect emoji-bot --format='{{range .Config.Env}}{{println .}}{{end}}' | grep -E "DISCORD_BOT_TOKEN=" | sed 's/DISCORD_BOT_TOKEN=\(.\{10\}\).*/DISCORD_BOT_TOKEN=\1.../'
+          echo ""
+          if docker inspect emoji-bot --format='{{.State.Status}}' | grep -q "restarting"; then
+            echo "⚠️ Container is in restart loop - likely due to invalid token"
+            echo "📈 Restart count: $(docker inspect emoji-bot --format='{{.RestartCount}}')"
+          fi
         elif docker ps -a --format "{{.Names}}" | grep -q "emoji-bot"; then
           echo "⚠️ emoji-bot container exists but is not running (likely crashed)"
           echo "📄 Container logs:"
