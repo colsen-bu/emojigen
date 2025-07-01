@@ -2,6 +2,11 @@
 # Woodpecker CI Pipeline for Discord Emoji Bot
 # This pipeline builds, tests, and deploys the Discord bot
 
+services:
+  - name: docker
+    image: docker:dind
+    privileged: true
+
 # Define the pipeline steps
 when:
   event: [push, pull_request, tag]
