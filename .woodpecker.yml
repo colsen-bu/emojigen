@@ -3,6 +3,9 @@
 # This pipeline builds, tests, and deploys the Discord bot
 
 # Define the pipeline steps
+when:
+  event: [push, pull_request, tag]
+
 steps:
   # Step 1: Code Quality and Linting
   - name: lint
@@ -47,10 +50,10 @@ steps:
   - name: build
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -65,12 +68,12 @@ steps:
   - name: test-container
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
-      - DISCORD_BOT_TOKEN=dummy_token_for_testing
-      - OPENAI_API_KEY=dummy_api_key_for_testing
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+      DISCORD_BOT_TOKEN: dummy_token_for_testing
+      OPENAI_API_KEY: dummy_api_key_for_testing
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -93,10 +96,10 @@ steps:
   - name: package
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -112,10 +115,10 @@ steps:
   - name: deploy
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -137,7 +140,8 @@ steps:
           echo "📋 Skipping deployment - not on main branch"
         fi
     when:
-      branch: main
+      - event: push
+        branch: main
 
   # Step 7: Notification (runs on success/failure)
   - name: notify
@@ -154,7 +158,7 @@ steps:
           echo "❌ Pipeline failed! Check the logs above."
         fi
     when:
-      status: [success, failure]
+      - status: [success, failure]
 
 # Services for Docker-in-Docker
 services:
@@ -162,7 +166,7 @@ services:
     image: docker:24-dind
     privileged: true
     environment:
-      - DOCKER_TLS_CERTDIR=/certs
+      DOCKER_TLS_CERTDIR: /certs
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -171,16 +175,16 @@ services:
 
 # Define named volumes
 volumes:
-  docker-certs-ca:
+  - name: docker-certs-ca
     temp: {}
-  docker-certs-client:
+  - name: docker-certs-client
     temp: {}
 
-# Pipeline triggers
-when:
-  event: [push, pull_request, tag]
-  # matrix:
-  #   PYTHON_VERSION:
-  #     - "3.10"
-  #     - "3.11"
-  #     - "3.12"
+# Pipeline triggers moved to top of file
+# when:
+#   event: [push, pull_request, tag]
+# matrix:
+#   PYTHON_VERSION:
+#     - "3.10"
+#     - "3.11"
+#     - "3.12"

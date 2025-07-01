@@ -1,6 +1,10 @@
 # Woodpecker CI Test Pipeline
 # This is a simpler pipeline for testing and development
 
+# Trigger on all events
+when:
+  - event: [push, pull_request, tag, manual]
+
 steps:
   # Quick code validation
   - name: quick-test
@@ -26,10 +30,10 @@ steps:
   - name: docker-build-test
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -43,7 +47,7 @@ services:
     image: docker:24-dind
     privileged: true
     environment:
-      - DOCKER_TLS_CERTDIR=/certs
+      DOCKER_TLS_CERTDIR: /certs
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -54,6 +58,4 @@ volumes:
   - name: docker-certs-client
     temp: {}
 
-# Trigger on all events
-when:
-  event: [push, pull_request, tag, manual]
+# Moved to top of file

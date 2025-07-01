@@ -1,6 +1,11 @@
 # Woodpecker CI Deploy Pipeline
 # This pipeline handles production deployments
 
+# Only run on main branch and tags
+when:
+  - event: [push, tag]
+    branch: main
+
 steps:
   # Pre-deployment checks
   - name: pre-deploy-check
@@ -23,10 +28,10 @@ steps:
   - name: build-production
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -40,10 +45,10 @@ steps:
   - name: deploy-with-compose
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -67,10 +72,10 @@ steps:
   - name: health-check
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -92,10 +97,10 @@ steps:
   - name: cleanup
     image: docker:24-dind
     environment:
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_CERTDIR=/certs
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -109,7 +114,7 @@ services:
     image: docker:24-dind
     privileged: true
     environment:
-      - DOCKER_TLS_CERTDIR=/certs
+      DOCKER_TLS_CERTDIR: /certs
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -120,7 +125,4 @@ volumes:
   - name: docker-certs-client
     temp: {}
 
-# Only run on main branch and tags
-when:
-  event: [push, tag]
-  branch: main
+# Moved to top of file
