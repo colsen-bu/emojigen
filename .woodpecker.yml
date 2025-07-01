@@ -3,9 +3,9 @@ steps:
   - name: hello
     image: alpine:latest
     environment:
-      GREETING: "Hello"
+      GREETING: "Hello from Woodpecker 3.x!"
     commands:
-      - echo "${GREETING} from Woodpecker 3.x!"
+      - echo "${GREETING}"
       - echo "Repository: ${CI_REPO}"
       - echo "Branch: ${CI_COMMIT_BRANCH}"
       - echo "Commit: ${CI_COMMIT_SHA}"
