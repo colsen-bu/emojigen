@@ -7,33 +7,6 @@ when:
     branch: main
 
 steps:
-  # Simple secret test
-  - name: secret-test
-    image: alpine:latest
-    environment:
-      DISCORD_BOT_TOKEN:
-        from_secret: DISCORD_BOT_TOKEN
-      OPENAI_API_KEY:
-        from_secret: OPENAI_API_KEY
-    commands:
-      - echo "🔍 Testing secret injection..."
-      - echo "Environment variables available:"
-      - env | sort
-      - |
-        if [ -n "$DISCORD_BOT_TOKEN" ]; then
-          echo "DISCORD_BOT_TOKEN present: YES"
-        else
-          echo "DISCORD_BOT_TOKEN present: NO"
-        fi
-      - |
-        if [ -n "$OPENAI_API_KEY" ]; then
-          echo "OPENAI_API_KEY present: YES"
-        else
-          echo "OPENAI_API_KEY present: NO"
-        fi
-      - echo "DISCORD_BOT_TOKEN length: ${#DISCORD_BOT_TOKEN}"
-      - echo "OPENAI_API_KEY length: ${#OPENAI_API_KEY}"
-
   # Pre-deployment checks
   - name: pre-deploy-check
     image: python:3.11-slim
@@ -44,20 +17,14 @@ steps:
         from_secret: OPENAI_API_KEY
     commands:
       - echo "🔍 Running pre-deployment checks for Discord Emoji Bot..."
-      - echo "🔧 Debug: Checking environment variables..."
-      - echo "DISCORD_BOT_TOKEN length: ${#DISCORD_BOT_TOKEN}"
-      - echo "OPENAI_API_KEY length: ${#OPENAI_API_KEY}"
-      - env | grep -E "(DISCORD|OPENAI)" || echo "No Discord/OpenAI environment variables found"
       - |
         if [ -z "${DISCORD_BOT_TOKEN}" ]; then
           echo "❌ DISCORD_BOT_TOKEN is required for Discord bot deployment"
-          echo "🔧 Please check that DISCORD_BOT_TOKEN is configured in Woodpecker secrets"
           exit 1
         fi
       - |
         if [ -z "${OPENAI_API_KEY}" ]; then
           echo "❌ OPENAI_API_KEY is required for DALL-E emoji generation"
-          echo "🔧 Please check that OPENAI_API_KEY is configured in Woodpecker secrets"
           exit 1
         fi
       - echo "✅ Discord and OpenAI environment variables validated"
