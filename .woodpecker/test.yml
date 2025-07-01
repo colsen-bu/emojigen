@@ -34,19 +34,21 @@ steps:
       - docker build -t discord-emoji-bot-test:${CI_COMMIT_SHA} .
       - echo "✅ Discord Emoji Bot Docker build test completed!"
 
-  # Test with dummy secrets (for import validation)
-  - name: test-with-dummy-secrets
+  # Test with real secrets (for environment validation)
+  - name: test-with-real-secrets
     image: python:3.11-slim
     environment:
-      DISCORD_BOT_TOKEN: dummy_token_for_testing_imports
-      OPENAI_API_KEY: dummy_key_for_testing_imports
+      DISCORD_BOT_TOKEN:
+        from_secret: DISCORD_BOT_TOKEN
+      OPENAI_API_KEY:
+        from_secret: OPENAI_API_KEY
     commands:
-      - echo "🧪 Testing Discord Emoji Bot with dummy environment..."
+      - echo "🧪 Testing Discord Emoji Bot with real environment secrets..."
       - apt-get update && apt-get install -y gcc
       - pip install --upgrade pip
       - pip install -r requirements.txt
       - |
-        # Test that the bot can import and initialize without real tokens
+        # Test that the bot can import and access real environment variables
         python -c "
         import os, sys
         sys.path.insert(0, 'src')
@@ -57,7 +59,15 @@ steps:
         token = os.getenv('DISCORD_BOT_TOKEN')
         api_key = os.getenv('OPENAI_API_KEY')
         print(f'✅ Environment variables accessible: token={len(token) if token else 0} chars, api_key={len(api_key) if api_key else 0} chars')
+        if token and len(token) > 10:
+          print('✅ DISCORD_BOT_TOKEN appears to be valid')
+        else:
+          print('⚠️ DISCORD_BOT_TOKEN may be missing or invalid')
+        if api_key and len(api_key) > 10:
+          print('✅ OPENAI_API_KEY appears to be valid')
+        else:
+          print('⚠️ OPENAI_API_KEY may be missing or invalid')
         "
-      - echo "✅ Discord Emoji Bot dummy environment test passed!"
+      - echo "✅ Discord Emoji Bot real environment test completed!"
 
 # Removed services and volumes sections due to trust level restrictions

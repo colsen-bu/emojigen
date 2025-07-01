@@ -60,11 +60,10 @@ steps:
   - name: test-container
     image: docker:24
     environment:
-      DISCORD_BOT_TOKEN: dummy_token_for_testing
-      OPENAI_API_KEY: dummy_api_key_for_testing
-    secrets:
-      - DISCORD_BOT_TOKEN
-      - OPENAI_API_KEY
+      DISCORD_BOT_TOKEN:
+        from_secret: DISCORD_BOT_TOKEN
+      OPENAI_API_KEY:
+        from_secret: OPENAI_API_KEY
     commands:
       - echo "🧪 Testing Docker container startup..."
       - echo "Debug: DISCORD_BOT_TOKEN length: ${#DISCORD_BOT_TOKEN}"
@@ -95,9 +94,11 @@ steps:
   # Step 6: Deploy (only on main branch)
   - name: deploy
     image: docker:24
-    secrets:
-      - DISCORD_BOT_TOKEN
-      - OPENAI_API_KEY
+    environment:
+      DISCORD_BOT_TOKEN:
+        from_secret: DISCORD_BOT_TOKEN
+      OPENAI_API_KEY:
+        from_secret: OPENAI_API_KEY
     commands:
       - echo "🚀 Deploying Discord Emoji Bot..."
       - |

@@ -10,9 +10,11 @@ steps:
   # Pre-deployment checks
   - name: pre-deploy-check
     image: python:3.11-slim
-    secrets:
-      - DISCORD_BOT_TOKEN
-      - OPENAI_API_KEY
+    environment:
+      DISCORD_BOT_TOKEN:
+        from_secret: DISCORD_BOT_TOKEN
+      OPENAI_API_KEY:
+        from_secret: OPENAI_API_KEY
     commands:
       - echo "🔍 Running pre-deployment checks for Discord Emoji Bot..."
       - |
@@ -39,9 +41,11 @@ steps:
   # Deploy using docker-compose
   - name: deploy-with-compose
     image: docker:24
-    secrets:
-      - DISCORD_BOT_TOKEN
-      - OPENAI_API_KEY
+    environment:
+      DISCORD_BOT_TOKEN:
+        from_secret: DISCORD_BOT_TOKEN
+      OPENAI_API_KEY:
+        from_secret: OPENAI_API_KEY
     commands:
       - echo "🚀 Deploying Discord Emoji Bot with docker-compose..."
       - |
