@@ -62,13 +62,17 @@ steps:
     environment:
       DISCORD_BOT_TOKEN: dummy_token_for_testing
       OPENAI_API_KEY: dummy_api_key_for_testing
+    secrets:
+      - DISCORD_BOT_TOKEN
+      - OPENAI_API_KEY
     commands:
       - echo "🧪 Testing Docker container startup..."
+      - echo "Debug: DISCORD_BOT_TOKEN length: ${#DISCORD_BOT_TOKEN}"
       - |
         # Test that the container can start without crashing immediately
         timeout 10s docker run --rm \
-          -e DISCORD_BOT_TOKEN=dummy_token \
-          -e OPENAI_API_KEY=dummy_key \
+          -e DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}" \
+          -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
           emoji-bot:${CI_COMMIT_SHA} python -c "
         import sys; sys.path.insert(0, 'src')
         import discord_emoji
@@ -91,11 +95,15 @@ steps:
   # Step 6: Deploy (only on main branch)
   - name: deploy
     image: docker:24
+    secrets:
+      - DISCORD_BOT_TOKEN
+      - OPENAI_API_KEY
     commands:
       - echo "🚀 Deploying Discord Emoji Bot..."
       - |
         if [ "${CI_COMMIT_BRANCH}" = "main" ]; then
           echo "📡 Deploying to production environment..."
+          echo "Debug: Bot token available: $([ -n "${DISCORD_BOT_TOKEN}" ] && echo "Yes" || echo "No")"
           # Here you would typically:
           # 1. Push to container registry
           # 2. Deploy to your server
@@ -122,7 +130,7 @@ steps:
       - echo "💬 Message: ${CI_COMMIT_MESSAGE}"
       - |
         if [ "${CI_PIPELINE_STATUS}" = "success" ]; then
-          echo "✅ Pipeline succeeded! Bot is ready for deployment."
+          echo "✅ Pipeline succeeded! Discord Emoji Bot is ready for deployment."
         else
           echo "❌ Pipeline failed! Check the logs above."
         fi
