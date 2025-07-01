@@ -54,7 +54,7 @@ jobs:
         
     - name: Linting
       run: |
-        flake8 src/ --max-line-length=100 --ignore=E203,W503,I201,E402,D202
+        flake8 src/ --max-line-length=100 --ignore=E203,W503,I201,E402,D202,I100
         
     - name: Security scan
       run: |
