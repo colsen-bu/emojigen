@@ -3,7 +3,7 @@
    - name: 'step name'
      image: registry/repo/image:tag
      commands:
-+      - echo "The secret is $TOKEN_ENV"
-+    environment:
-+      TOKEN_ENV:
-+        from_secret: TOKEN_ENV
+       - echo "The secret is $TOKEN_ENV"
+     environment:
+       TOKEN_ENV:
+         from_secret: TOKEN_ENV
