@@ -74,34 +74,32 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🏥 Running health checks for Discord Emoji Bot..."
-      - sleep 45  # Wait for Discord bot container to start
+      - sleep 30  # Wait for Discord bot container to start
       - |
         # List all running containers to debug
         echo "📋 Currently running containers:"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
       - |
-        # Check specifically for emoji-bot container (from docker-compose.yml)
+        # Check specifically for emoji-bot container
         echo "🔍 Looking for emoji-bot container..."
         if docker ps --format "{{.Names}}" | grep -q "emoji-bot"; then
           echo "✅ Discord Emoji Bot container is running"
-          docker logs emoji-bot --tail 20
-        else
-          echo "❌ emoji-bot container is not running"
-          echo "📋 All containers (including stopped):"
-          docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+          echo "📄 Recent container logs:"
+          docker logs emoji-bot --tail 30
+        elif docker ps -a --format "{{.Names}}" | grep -q "emoji-bot"; then
+          echo "⚠️ emoji-bot container exists but is not running (likely crashed)"
+          echo "📄 Container logs:"
+          docker logs emoji-bot --tail 50
           echo ""
-          echo "🔍 Checking if emoji-bot container exists at all:"
-          if docker ps -a --format "{{.Names}}" | grep -q "emoji-bot"; then
-            echo "📄 Found stopped emoji-bot container, checking logs:"
-            docker logs emoji-bot --tail 50
-            echo ""
-            echo "� Container status:"
-            docker inspect emoji-bot --format='Status: {{.State.Status}}, Error: {{.State.Error}}, ExitCode: {{.State.ExitCode}}'
-          else
-            echo "❌ No emoji-bot container found at all"
-            echo "� Checking what docker-compose created:"
-            docker-compose ps -a
-          fi
+          echo "📊 Container status:"
+          docker inspect emoji-bot --format='Status: {{.State.Status}}, ExitCode: {{.State.ExitCode}}'
+          echo ""
+          echo "� Environment variables in container:"
+          docker inspect emoji-bot --format='{{range .Config.Env}}{{println .}}{{end}}' | grep -E "(DISCORD|OPENAI)" || echo "No Discord/OpenAI env vars found"
+        else
+          echo "❌ No emoji-bot container found"
+          echo "� Docker-compose status:"
+          docker-compose ps -a
           exit 1
         fi
       - echo "✅ Discord Emoji Bot health check passed!"
