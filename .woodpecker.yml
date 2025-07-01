@@ -54,6 +54,8 @@ steps:
   # Step 3: Build Docker Image
   - name: build
     image: docker:24
+    environment:
+      DOCKER_HOST: tcp://docker:2375
     commands:
       - echo "🏗️ Building Discord Emoji Bot Docker image..."
       - docker build -t emoji-bot:${CI_COMMIT_SHA} .
@@ -65,6 +67,7 @@ steps:
   - name: test-container
     image: docker:24
     environment:
+      DOCKER_HOST: tcp://docker:2375
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:
@@ -88,6 +91,8 @@ steps:
   # Step 5: Generate Deployment Package
   - name: package
     image: docker:24
+    environment:
+      DOCKER_HOST: tcp://docker:2375
     commands:
       - echo "📦 Creating deployment package..."
       - docker save emoji-bot:${CI_COMMIT_SHA} | \
@@ -100,6 +105,7 @@ steps:
   - name: deploy
     image: docker:24
     environment:
+      DOCKER_HOST: tcp://docker:2375
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:

@@ -37,6 +37,8 @@ steps:
   # Build production image
   - name: build-production
     image: docker:24
+    environment:
+      DOCKER_HOST: tcp://docker:2375
     commands:
       - echo "🏗️ Building production Docker image for Discord Emoji Bot..."
       - docker build -t discord-emoji-bot:production-${CI_COMMIT_SHA} .
@@ -48,6 +50,7 @@ steps:
     image: docker:24
     detach: true
     environment:
+      DOCKER_HOST: tcp://docker:2375
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:
@@ -73,6 +76,8 @@ steps:
   # Health check
   - name: health-check
     image: docker:24
+    environment:
+      DOCKER_HOST: tcp://docker:2375
     commands:
       - echo "🏥 Running health checks for Discord Emoji Bot..."
       - sleep 30  # Wait for Discord bot container to start
@@ -94,6 +99,8 @@ steps:
   # Cleanup old images
   - name: cleanup
     image: docker:24
+    environment:
+      DOCKER_HOST: tcp://docker:2375
     when:
       - branch: main
     commands:

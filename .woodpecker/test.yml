@@ -37,6 +37,8 @@ steps:
   # Docker build test
   - name: docker-build-test
     image: docker:24
+    environment:
+      DOCKER_HOST: tcp://docker:2375
     commands:
       - echo "🏗️ Testing Docker build for Discord Emoji Bot..."
       - docker build -t discord-emoji-bot-test:${CI_COMMIT_SHA} .
