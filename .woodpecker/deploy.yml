@@ -18,12 +18,12 @@ steps:
     commands:
       - echo "🔍 Running pre-deployment checks for Discord Emoji Bot..."
       - |
-        if [ -z "${DISCORD_BOT_TOKEN}" ]; then
+        if [ -z "$DISCORD_BOT_TOKEN" ]; then
           echo "❌ DISCORD_BOT_TOKEN is required for Discord bot deployment"
           exit 1
         fi
       - |
-        if [ -z "${OPENAI_API_KEY}" ]; then
+        if [ -z "$OPENAI_API_KEY" ]; then
           echo "❌ OPENAI_API_KEY is required for DALL-E emoji generation"
           exit 1
         fi

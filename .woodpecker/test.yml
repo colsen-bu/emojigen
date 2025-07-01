@@ -9,6 +9,9 @@ steps:
   # Quick code validation
   - name: quick-test
     image: python:3.11-slim
+    environment:
+      DISCORD_BOT_TOKEN: "dummy"
+      OPENAI_API_KEY: "dummy"
     commands:
       - echo "🔍 Running quick validation tests for Discord Emoji Bot..."
       - apt-get update && apt-get install -y gcc
