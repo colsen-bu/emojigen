@@ -56,9 +56,8 @@ steps:
       - export OPENAI_API_KEY="${OPENAI_API_KEY}"
       - echo "🚀 Deploying Discord Emoji Bot with docker-compose..."
       - |
-        # Install docker-compose using pip (more reliable)
-        apk add --no-cache python3 py3-pip
-        pip3 install docker-compose
+        # Install docker-compose from Alpine package manager
+        apk add --no-cache docker-compose
       - |
         # Update the docker-compose.yml to use the new image
         sed -i "s|build: \.|image: discord-emoji-bot:production-${CI_COMMIT_SHA}|" docker-compose.yml
