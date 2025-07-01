@@ -5,7 +5,4 @@ steps:
     environment:
       GREETING: "Hello from Woodpecker 3.x!"
     commands:
-      - echo "${GREETING}"
-      - echo "Repository: ${CI_REPO}"
-      - echo "Branch: ${CI_COMMIT_BRANCH}"
-      - echo "Commit: ${CI_COMMIT_SHA}"
+      - echo "Hello World"
