@@ -4,61 +4,52 @@ A Discord bot that generates custom emojis using OpenAI's DALL-E API and adds th
 
 ## Features
 
-- 🎨 **AI-Generated Emojis**: Uses OpenAI DALL-E 3 to create custom emojis
-- 🖱️ **Context Menu Integration**: Right-click any message to generate an emoji reaction
-- 🔄 **Automatic Cleanup**: Emojis are automatically deleted after use to save server space
-- 🐳 **Docker Ready**: Fully containerized for easy deployment
-- 🔒 **Secure**: Runs as non-root user in container
-- 🚀 **CI/CD Ready**: Includes Woodpecker CI pipelines for automated testing and deployment
+- 🎨 **AI-Generated Emojis**: Uses OpenAI DALL-E 3 to create custom emojis.
+- 🖱️ **Context Menu Integration**: Right-click any message to generate an emoji reaction.
+- 🔄 **Automatic Cleanup**: Emojis are automatically deleted after use to save server space.
+- 🐳 **Docker Ready**: Fully containerized for easy deployment.
+- 🔒 **Secure**: Runs as non-root user in container.
+- 🚀 **CI/CD Ready**: Includes Woodpecker CI pipelines for automated testing and deployment.
 
-## CI/CD Pipeline
+## Table of Contents
 
-This project includes comprehensive CI/CD pipelines using **Woodpecker CI**:
-
-- ✅ **Automated Testing**: Code quality, linting, and security scans
-- 🏗️ **Docker Builds**: Automated image building and testing
-- 🚀 **Deployments**: Production deployment automation
-- 📊 **Monitoring**: Health checks and status notifications
-
-### Pipeline Features
-- **Code Quality**: Black formatting, flake8 linting, import sorting
-- **Security**: Bandit security scanning, dependency vulnerability checks
-- **Testing**: Pytest test suite with coverage reporting
-- **Docker**: Multi-stage builds with optimization
-- **Deployment**: Automated production deployments on main branch
-
-For detailed CI/CD setup instructions, see [WOODPECKER_CI_README.md](WOODPECKER_CI_README.md).
-
-### Quick Development Commands
-
-Use the included Makefile for common development tasks:
-
-```bash
-# Setup development environment
-make setup
-
-# Run tests and linting
-make ci-test
-
-# Build and test Docker image
-make ci-build
-
-# Format code
-make format
-
-# Run security scans
-make security
-```
+- [Discord Emoji Bot](#discord-emoji-bot)
+  - [Features](#features)
+  - [Table of Contents](#table-of-contents)
+  - [Prerequisites](#prerequisites)
+  - [Bot Permissions](#bot-permissions)
+  - [Quick Start with Docker](#quick-start-with-docker)
+  - [Local Development Setup](#local-development-setup)
+    - [Why Use a Virtual Environment?](#why-use-a-virtual-environment)
+    - [Automated Setup (Recommended)](#automated-setup-recommended)
+    - [Manual Setup](#manual-setup)
+    - [IDE Integration](#ide-integration)
+  - [Usage](#usage)
+  - [Development Commands (Makefile)](#development-commands-makefile)
+  - [CI/CD Pipeline (Woodpecker CI)](#cicd-pipeline-woodpecker-ci)
+    - [Pipeline Overview](#pipeline-overview)
+    - [Pipeline Files](#pipeline-files)
+    - [Pipeline Stages](#pipeline-stages)
+    - [Secrets Setup](#secrets-setup)
+  - [Deployment](#deployment)
+    - [Deploying on an OCI Instance (or other VM)](#deploying-on-an-oci-instance-or-other-vm)
+    - [Automatic vs. Manual Deployment](#automatic-vs-manual-deployment)
+  - [Troubleshooting](#troubleshooting)
+    - [Common Bot Issues](#common-bot-issues)
+    - [Pipeline \& CI Issues](#pipeline--ci-issues)
+  - [Security Notes](#security-notes)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Prerequisites
 
-- Discord Bot Token ([Discord Developer Portal](https://discord.com/developers/applications))
-- OpenAI API Key ([OpenAI Platform](https://platform.openai.com/api-keys))
-- Docker and Docker Compose (for containerized deployment)
+- **Discord Bot Token**: Get one from the [Discord Developer Portal](https://discord.com/developers/applications).
+- **OpenAI API Key**: Get one from the [OpenAI Platform](https://platform.openai.com/api-keys).
+- **Docker and Docker Compose**: Required for containerized deployment.
 
 ## Bot Permissions
 
-Your Discord bot needs the following permissions:
+Your Discord bot needs the following permissions on your server:
 - `Use Slash Commands`
 - `Manage Emojis and Stickers`
 - `Add Reactions`
@@ -66,171 +57,180 @@ Your Discord bot needs the following permissions:
 
 ## Quick Start with Docker
 
-1. **Clone and navigate to the project**:
-   ```bash
-   git clone <your-repo-url>
-   cd emoji_gen_bot
-   ```
+1.  **Clone the repository**:
+    ```bash
+    git clone <your-repo-url>
+    cd emoji_gen_bot
+    ```
 
-2. **Set up environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your actual tokens
-   ```
+2.  **Set up environment variables**:
+    Create a `.env` file in the root directory and add your tokens. You can copy the example file:
+    ```bash
+    cp .env.example .env
+    # Now, edit the .env file with your actual tokens
+    ```
 
-3. **Build and run with Docker Compose**:
-   ```bash
-   docker-compose up -d
-   ```
+3.  **Build and run with Docker Compose**:
+    ```bash
+    docker-compose up --build -d
+    ```
 
-4. **Check logs**:
-   ```bash
-   docker-compose logs -f
-   ```
+4.  **Check logs**:
+    ```bash
+    docker-compose logs -f
+    ```
 
-## Environment Variables
+## Local Development Setup
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DISCORD_BOT_TOKEN` | Your Discord bot token | Yes |
-| `OPENAI_API_KEY` | Your OpenAI API key | Yes |
-| `GUILD_ID` | Discord server ID for faster command sync | No |
+For local development, a Python virtual environment is recommended to isolate dependencies.
+
+### Why Use a Virtual Environment?
+- **Isolated dependencies**: Avoids conflicts with global Python packages.
+- **Reproducible builds**: Ensures consistent package versions.
+- **Clean development**: Easy to reset and recreate the environment.
+
+### Automated Setup (Recommended)
+The included script sets up the virtual environment and installs all dependencies.
+
+```bash
+# Run the setup script
+./scripts/setup-venv.sh
+
+# Activate the virtual environment
+source venv/bin/activate
+```
+
+### Manual Setup
+```bash
+# Create the virtual environment
+python3 -m venv venv
+
+# Activate it
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+### IDE Integration
+- **VS Code**: Open the Command Palette (`Cmd+Shift+P`), select "Python: Select Interpreter", and choose `./venv/bin/python`.
+- **PyCharm**: Go to `Settings > Project > Python Interpreter`, click the gear icon, select "Add", choose "Existing environment", and point to `./venv/bin/python`.
+
 
 ## Usage
 
-1. **Invite the bot** to your Discord server with the required permissions
-2. **Right-click any message** in your server
-3. **Select "Generate Emoji Reaction"** from the context menu
-4. **Fill in the modal**:
-   - **Emoji Name**: Short name for the emoji (e.g., "happycat")
-   - **Prompt**: Description of the emoji you want to generate
-5. **Submit** and wait for the bot to generate and react with your custom emoji!
+1.  **Invite the bot** to your Discord server with the required [permissions](#bot-permissions).
+2.  **Right-click any message** in your server.
+3.  Select **"Generate Emoji Reaction"** from the context menu.
+4.  **Fill in the modal**:
+    - **Emoji Name**: A short name for the emoji (e.g., "happycat").
+    - **Prompt**: A description of the emoji you want to generate.
+5.  **Submit** and wait for the bot to generate and react with your custom emoji!
 
-## Deployment on OCI Instance
+## Development Commands (Makefile)
 
-### Method 1: Docker Compose (Recommended)
+Use the `Makefile` for common development tasks. These commands automatically handle the virtual environment if it exists.
 
-1. **Install Docker on your OCI instance**:
-   ```bash
-   sudo apt update
-   sudo apt install docker.io docker-compose -y
-   sudo systemctl start docker
-   sudo systemctl enable docker
-   sudo usermod -aG docker $USER
-   ```
+| Command | Description |
+|---|---|
+| `make setup` | Sets up the development environment. |
+| `make ci-test` | Runs the full suite of tests and linters. |
+| `make ci-build`| Builds and tests the Docker image. |
+| `make format` | Formats code with Black and isort. |
+| `make security`| Runs security scans with bandit and safety. |
+| `make venv-dev` | Runs the bot locally in the virtual environment. |
+| `make venv-clean`| Removes the virtual environment. |
 
-2. **Clone the repository**:
-   ```bash
-   git clone <your-repo-url>
-   cd emoji_gen_bot
-   ```
 
-3. **Configure environment**:
-   ```bash
-   cp .env.example .env
-   nano .env  # Add your tokens
-   ```
+## CI/CD Pipeline (Woodpecker CI)
 
-4. **Deploy**:
-   ```bash
-   docker-compose up -d
-   ```
+This project uses a comprehensive Woodpecker CI pipeline for automation.
 
-### Method 2: Docker Build and Run
+### Pipeline Overview
+- ✅ **Code Quality**: Runs linting, formatting, and security scans.
+- 🏗️ **Build**: Creates and tests Docker images.
+- 🚀 **Deploy**: Handles automated production deployments.
+- 📦 **Package**: Creates deployment artifacts.
 
-1. **Build the image**:
-   ```bash
-   docker build -t discord-emoji-bot .
-   ```
+### Pipeline Files
+- `.woodpecker.yml`: The main pipeline configuration.
+- `.woodpecker/`: Directory for additional pipeline definitions (e.g., `test.yml`, `deploy.yml`).
 
-2. **Run the container**:
-   ```bash
-   docker run -d \
-     --name emoji-bot \
-     --restart unless-stopped \
-     -e DISCORD_BOT_TOKEN=your_token \
-     -e OPENAI_API_KEY=your_key \
-     -e GUILD_ID=your_guild_id \
-     discord-emoji-bot
-   ```
+### Pipeline Stages
+1.  **Lint**: Code formatting and style checks.
+2.  **Security Scan**: Vulnerability and static security analysis.
+3.  **Build**: Docker image creation.
+4.  **Test Container**: Validation of Docker container functionality.
+5.  **Package**: Creation of deployment artifacts.
+6.  **Deploy**: Production deployment (triggers on `main` branch only).
+7.  **Notify**: Pipeline status notifications.
 
-## Local Development
+### Secrets Setup
+Configure these secrets in your Woodpecker CI repository settings:
 
-1. **Install Python dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+| Secret Name | Description | Required |
+|---|---|---|
+| `DISCORD_BOT_TOKEN` | Your Discord bot token. | Yes |
+| `OPENAI_API_KEY` | Your OpenAI API key. | Yes |
+| `GUILD_ID` | Discord server ID for faster testing. | No |
+| `RESPONSE_CHANNEL`| Channel for bot responses. | No |
 
-2. **Set up environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your tokens
-   ```
+## Deployment
 
-3. **Run the bot**:
-   ```bash
-   python discord_emoji.py
-   ```
+### Deploying on an OCI Instance (or other VM)
 
-## Docker Configuration
+1.  **Install Docker on your instance**:
+    ```bash
+    sudo apt update
+    sudo apt install docker.io docker-compose -y
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker $USER
+    # Log out and log back in for the group change to take effect
+    ```
 
-The bot is configured with:
-- **Base Image**: Python 3.11 slim
-- **Security**: Runs as non-root user
-- **Health Checks**: Built-in container health monitoring
-- **Logging**: JSON file logging with rotation
-- **Auto-restart**: Container restarts on failure
+2.  **Clone the repository and configure the environment**:
+    ```bash
+    git clone <your-repo-url>
+    cd emoji_gen_bot
+    cp .env.example .env
+    nano .env  # Add your tokens
+    ```
+
+3.  **Deploy with Docker Compose**:
+    ```bash
+    docker-compose up --build -d
+    ```
+
+### Automatic vs. Manual Deployment
+- **Automatic**: Deployments are triggered automatically by a push to the `main` branch if the pipeline succeeds.
+- **Manual**: You can manually trigger a deployment from the Woodpecker CI dashboard.
 
 ## Troubleshooting
 
-### Common Issues
+### Common Bot Issues
+- **"I don't have permission to add emojis"**: Ensure the bot has the "Manage Emojis and Stickers" permission and that the server hasn't reached its emoji limit.
+- **Commands not appearing**: Set the `GUILD_ID` environment variable for faster command syncing during development. Otherwise, global commands can take up to an hour to sync.
+- **Container not starting**: Check the logs with `docker-compose logs -f` and verify that all required environment variables are set correctly in your `.env` file.
 
-1. **"I don't have permission to add emojis"**
-   - Ensure the bot has "Manage Emojis and Stickers" permission
-   - Check that the server hasn't reached the emoji limit
-
-2. **Commands not appearing**
-   - Set `GUILD_ID` for faster sync during development
-   - Wait up to 1 hour for global command sync
-
-3. **Container not starting**
-   - Check logs: `docker-compose logs`
-   - Verify environment variables are set
-   - Ensure tokens are valid
-
-### Logs
-
-View container logs:
-```bash
-# Docker Compose
-docker-compose logs -f
-
-# Direct Docker
-docker logs -f emoji-bot
-```
+### Pipeline & CI Issues
+- **Pipeline Won't Start**: Check your `.woodpecker.yml` syntax and ensure the repository is correctly connected to Woodpecker CI.
+- **Build Failures**: Review pipeline logs for errors. Test Docker builds locally with `make ci-build` before pushing.
+- **Secret Access Errors**: Verify that all required secrets are configured correctly in your Woodpecker CI repository settings.
 
 ## Security Notes
 
-- Never commit your `.env` file with real tokens
-- Use environment variables for sensitive data
-- The container runs as a non-root user for security
-- Consider using Docker secrets for production deployments
+- **Never commit your `.env` file** or any other files containing sensitive tokens.
+- The container is configured to run as a non-root user for enhanced security.
+- For production, consider using a more robust secrets management solution like Docker secrets or a cloud provider's secret manager.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+1.  Fork the repository.
+2.  Create a new feature branch.
+3.  Make your changes and test them thoroughly.
+4.  Submit a pull request. The CI pipeline will automatically validate your changes.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For issues and questions:
-- Check the troubleshooting section above
-- Review container logs
-- Open an issue in the repository
+This project is licensed under the MIT License. See the `LICENSE` file for details.

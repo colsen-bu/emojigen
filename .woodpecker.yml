@@ -16,11 +16,11 @@ steps:
       - pip install flake8 black isort
       - pip install -r requirements.txt
       - echo "🔍 Running code formatting checks..."
-      - black --check discord_emoji.py || (echo "❌ Code formatting issues found. Run 'black discord_emoji.py' to fix." && exit 1)
+      - black --check src/ || (echo "❌ Code formatting issues found. Run 'black src/' to fix." && exit 1)
       - echo "🔍 Running import sorting checks..."
-      - isort --check-only discord_emoji.py || (echo "❌ Import sorting issues found. Run 'isort discord_emoji.py' to fix." && exit 1)
+      - isort --check-only src/ || (echo "❌ Import sorting issues found. Run 'isort src/' to fix." && exit 1)
       - echo "🔍 Running linting checks..."
-      - flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503,I201
+      - flake8 src/ --max-line-length=100 --ignore=E203,W503,I201
       - echo "✅ Code quality checks passed!"
 
   # Step 2: Security Scanning
@@ -75,6 +75,7 @@ steps:
           -e DISCORD_BOT_TOKEN=dummy_token \
           -e OPENAI_API_KEY=dummy_key \
           emoji-bot:${CI_COMMIT_SHA} python -c "
+        import sys; sys.path.insert(0, 'src')
         import discord_emoji
         print('✅ Bot imports successfully')
         print('✅ All dependencies loaded')
@@ -163,9 +164,9 @@ services:
 
 # Define named volumes
 volumes:
-  - name: docker-certs-ca
+  docker-certs-ca:
     temp: {}
-  - name: docker-certs-client
+  docker-certs-client:
     temp: {}
 
 # Pipeline triggers

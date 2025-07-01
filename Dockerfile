@@ -16,7 +16,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY discord_emoji.py .
+COPY src/ ./src/
 
 # Create a non-root user for security
 RUN useradd --create-home --shell /bin/bash botuser && \
@@ -28,4 +28,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import asyncio; print('Bot is running')" || exit 1
 
 # Run the bot
-CMD ["python", "discord_emoji.py"]
+CMD ["python", "src/discord_emoji.py"]

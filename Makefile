@@ -54,17 +54,18 @@ install-dev: install
 
 test:
 	@echo "🧪 Running tests..."
-	pytest test_bot.py -v --cov=discord_emoji --cov-report=term-missing
+	pytest src/test_bot.py -v --cov=src/discord_emoji --cov-report=term-missing
 
 lint:
 	@echo "🔍 Running linting checks..."
-	flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503,I201
+	flake8 src/ --max-line-length=100 --ignore=E203,W503,I201,E402,D202 --exclude=src/test_bot.py
+	flake8 src/test_bot.py --max-line-length=100 --ignore=E203,W503,I201,E402,I100,D202
 	@echo "✅ Linting passed!"
 
 format:
 	@echo "🎨 Formatting code..."
-	black discord_emoji.py test_bot.py
-	isort discord_emoji.py test_bot.py
+	black src/
+	isort src/
 	@echo "✅ Code formatted!"
 
 security:
@@ -124,7 +125,7 @@ ci-build:
 	docker run --rm \
 		-e DISCORD_BOT_TOKEN=dummy_token \
 		-e OPENAI_API_KEY=dummy_key \
-		emoji-bot:latest python -c "import discord_emoji; print('✅ Container test passed')" \
+		emoji-bot:latest python -c "import sys; sys.path.insert(0, 'src'); import discord_emoji; print('✅ Container test passed')" \
 		|| echo "⚠️ Container test completed (expected with dummy credentials)"
 	@echo "✅ CI build pipeline completed!"
 
@@ -154,7 +155,7 @@ setup-hooks:
 dev:
 	@echo "🔧 Starting development mode..."
 	@if [ ! -f .env ]; then echo "❌ .env file not found! Run 'make env-template' first."; exit 1; fi
-	python discord_emoji.py
+	python src/discord_emoji.py
 
 # Quick setup for new developers
 setup: install-dev env-template setup-hooks
@@ -218,20 +219,21 @@ venv-activate:
 venv-dev:
 	@echo "🚀 Starting bot in virtual environment..."
 	@if [ ! -f .env ]; then echo "❌ .env file not found! Copy .env.example to .env and fill in your tokens."; exit 1; fi
-	source $(VENV_ACTIVATE) && python discord_emoji.py
+	source $(VENV_ACTIVATE) && python src/discord_emoji.py
 
 venv-test:
 	@echo "🧪 Running tests in virtual environment..."
-	source $(VENV_ACTIVATE) && pytest test_bot.py -v --cov=discord_emoji --cov-report=term-missing
+	source $(VENV_ACTIVATE) && pytest src/test_bot.py -v --cov=src/discord_emoji --cov-report=term-missing
 
 venv-lint:
 	@echo "🔍 Running linting in virtual environment..."
-	source $(VENV_ACTIVATE) && flake8 discord_emoji.py --max-line-length=100 --ignore=E203,W503,I201
+	source $(VENV_ACTIVATE) && flake8 src/ --max-line-length=100 --ignore=E203,W503,I201,E402,D202 --exclude=src/test_bot.py
+	source $(VENV_ACTIVATE) && flake8 src/test_bot.py --max-line-length=100 --ignore=E203,W503,I201,E402,I100,D202
 
 venv-format:
 	@echo "🎨 Formatting code in virtual environment..."
-	source $(VENV_ACTIVATE) && black discord_emoji.py test_bot.py
-	source $(VENV_ACTIVATE) && isort discord_emoji.py test_bot.py
+	source $(VENV_ACTIVATE) && black src/
+	source $(VENV_ACTIVATE) && isort src/
 
 venv-security:
 	@echo "🔒 Running security scans in virtual environment..."
