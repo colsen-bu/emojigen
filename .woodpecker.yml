@@ -1,3 +1,4 @@
+---
 # Woodpecker CI Pipeline for Discord Emoji Bot
 # This pipeline builds, tests, and deploys the Discord bot
 
@@ -16,11 +17,19 @@ steps:
       - pip install flake8 black isort
       - pip install -r requirements.txt
       - echo "🔍 Running code formatting checks..."
-      - black --check src/ || (echo "❌ Code formatting issues found. Run 'black src/' to fix." && exit 1)
+      - black --check src/ || (\
+          echo "❌ Code formatting issues found. Run 'black src/' to fix." && \
+          exit 1 \
+        )
       - echo "🔍 Running import sorting checks..."
-      - isort --check-only src/ || (echo "❌ Import sorting issues found. Run 'isort src/' to fix." && exit 1)
+      - isort --check-only src/ || (\
+          echo "❌ Import sorting issues found. Run 'isort src/' to fix." && \
+          exit 1 \
+        )
       - echo "🔍 Running linting checks..."
-      - flake8 src/ --max-line-length=100 --ignore=E203,W503,I201
+      - flake8 src/ \
+          --max-line-length=100 \
+          --ignore=E203,W503,I201
       - echo "✅ Code quality checks passed!"
 
   # Step 2: Security Scanning
@@ -31,9 +40,11 @@ steps:
       - pip install bandit safety
       - pip install -r requirements.txt
       - echo "🔒 Running security vulnerability scan..."
-      - safety check --json || echo "⚠️ Some dependencies may have known vulnerabilities"
+      - safety check --json || \
+          echo "⚠️ Some dependencies may have known vulnerabilities"
       - echo "🔒 Running static security analysis..."
-      - bandit -r . -f json || echo "⚠️ Potential security issues detected"
+      - bandit -r . -f json || \
+          echo "⚠️ Potential security issues detected"
       - echo "✅ Security scans completed!"
 
   # Step 3: Build Docker Image
@@ -79,7 +90,9 @@ steps:
         import discord_emoji
         print('✅ Bot imports successfully')
         print('✅ All dependencies loaded')
-        " || echo "⚠️ Container test completed (expected to fail with dummy credentials)"
+        " || echo "⚠️ Container test completed \
+        (expected to fail with dummy credentials)"
+        (expected to fail with dummy credentials)"
       - echo "✅ Container tests completed!"
 
   # Step 5: Generate Deployment Package
@@ -95,7 +108,8 @@ steps:
       - docker-certs-client:/certs/client
     commands:
       - echo "📦 Creating deployment package..."
-      - docker save emoji-bot:${CI_COMMIT_SHA} | gzip > emoji-bot-${CI_COMMIT_SHA}.tar.gz
+      - docker save emoji-bot:${CI_COMMIT_SHA} | \
+          gzip > emoji-bot-${CI_COMMIT_SHA}.tar.gz
       - docker save emoji-bot:latest | gzip > emoji-bot-latest.tar.gz
       - ls -lh *.tar.gz
       - echo "✅ Deployment packages created!"
@@ -120,11 +134,10 @@ steps:
           # 1. Push to container registry
           # 2. Deploy to your server
           # 3. Update running containers
-          
           # Example deployment commands (customize for your setup):
-          # docker tag emoji-bot:${CI_COMMIT_SHA} your-registry/emoji-bot:${CI_COMMIT_SHA}
+          # docker tag emoji-bot:${CI_COMMIT_SHA} \
+          your-registry/emoji-bot:${CI_COMMIT_SHA}
           # docker push your-registry/emoji-bot:${CI_COMMIT_SHA}
-          
           echo "✅ Production deployment completed!"
         else
           echo "📋 Skipping deployment - not on main branch"
