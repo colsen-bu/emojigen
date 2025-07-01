@@ -9,6 +9,12 @@ services:
   - name: docker
     image: docker:dind
     privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: /dind-certs
+    volumes:
+      - /opt/woodpeckerci/dind-certs:/dind-certs
+    ports:
+      - 2376
 
 steps:
   # Quick code validation
@@ -38,7 +44,11 @@ steps:
   - name: docker-build-test
     image: docker:24
     environment:
-      DOCKER_HOST: tcp://docker:2375
+      DOCKER_HOST: 'tcp://docker:2376'
+      DOCKER_CERT_PATH: '/dind-certs/client'
+      DOCKER_TLS_VERIFY: '1'
+    volumes:
+      - /opt/woodpeckerci/dind-certs:/dind-certs
     commands:
       - echo "🏗️ Testing Docker build for Discord Emoji Bot..."
       - docker build -t discord-emoji-bot-test:${CI_COMMIT_SHA} .
