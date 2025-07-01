@@ -52,8 +52,6 @@ steps:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
-      - export OPENAI_API_KEY="${OPENAI_API_KEY}"
       - echo "🚀 Deploying Discord Emoji Bot with docker-compose..."
       - |
         # Install docker-compose from Alpine package manager
@@ -62,7 +60,9 @@ steps:
         # Update the docker-compose.yml to use the new image
         sed -i "s|build: \.|image: discord-emoji-bot:production-${CI_COMMIT_SHA}|" docker-compose.yml
       - |
-        # Deploy the Discord bot application
+        # Deploy the Discord bot application with environment variables
+        export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
+        export OPENAI_API_KEY="${OPENAI_API_KEY}"
         docker-compose down || true
         docker-compose up -d
       - echo "✅ Discord Emoji Bot deployment completed!"
