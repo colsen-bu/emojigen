@@ -19,8 +19,18 @@ steps:
       - echo "🔍 Testing secret injection..."
       - echo "Environment variables available:"
       - env | sort
-      - echo "DISCORD_BOT_TOKEN present: $([ -n "$DISCORD_BOT_TOKEN" ] && echo "YES" || echo "NO")"
-      - echo "OPENAI_API_KEY present: $([ -n "$OPENAI_API_KEY" ] && echo "YES" || echo "NO")"
+      - |
+        if [ -n "$DISCORD_BOT_TOKEN" ]; then
+          echo "DISCORD_BOT_TOKEN present: YES"
+        else
+          echo "DISCORD_BOT_TOKEN present: NO"
+        fi
+      - |
+        if [ -n "$OPENAI_API_KEY" ]; then
+          echo "OPENAI_API_KEY present: YES"
+        else
+          echo "OPENAI_API_KEY present: NO"
+        fi
       - echo "DISCORD_BOT_TOKEN length: ${#DISCORD_BOT_TOKEN}"
       - echo "OPENAI_API_KEY length: ${#OPENAI_API_KEY}"
 
