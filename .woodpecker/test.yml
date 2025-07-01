@@ -1,4 +1,4 @@
-# Woodpecker CI Test Pipeline
+# Woodpecker CI Test Pipeline for Discord Emoji Bot
 # This is a simpler pipeline for testing and development
 
 # Trigger on all events
@@ -10,28 +10,54 @@ steps:
   - name: quick-test
     image: python:3.11-slim
     commands:
-      - echo "🔍 Running quick validation tests..."
+      - echo "🔍 Running quick validation tests for Discord Emoji Bot..."
       - apt-get update && apt-get install -y gcc
       - pip install --upgrade pip
       - pip install -r requirements.txt
-      - python -c "import sys; sys.path.insert(0, 'src'); import discord_emoji; print('✅ Bot imports successfully')"
-      - python -c "import discord; import openai; import aiohttp; from PIL import Image; print('✅ All dependencies available')"
-      - echo "✅ Quick tests passed!"
+      - python -c "import sys; sys.path.insert(0, 'src'); import discord_emoji; print('✅ Discord Emoji Bot imports successfully')"
+      - python -c "import discord; import openai; import aiohttp; from PIL import Image; print('✅ All Discord and DALL-E dependencies available')"
+      - echo "✅ Quick Discord Emoji Bot tests passed!"
 
   # Syntax and basic checks
   - name: syntax-check
     image: python:3.11-slim
     commands:
-      - echo "🔍 Checking Python syntax..."
+      - echo "🔍 Checking Python syntax for Discord Emoji Bot..."
       - python -m py_compile src/discord_emoji.py
-      - echo "✅ Syntax check passed!"
+      - echo "✅ Discord Emoji Bot syntax check passed!"
 
   # Docker build test
   - name: docker-build-test
     image: docker:24
     commands:
-      - echo "🏗️ Testing Docker build..."
-      - docker build -t emoji-bot-test:${CI_COMMIT_SHA} .
-      - echo "✅ Docker build test completed!"
+      - echo "🏗️ Testing Docker build for Discord Emoji Bot..."
+      - docker build -t discord-emoji-bot-test:${CI_COMMIT_SHA} .
+      - echo "✅ Discord Emoji Bot Docker build test completed!"
+
+  # Test with dummy secrets (for import validation)
+  - name: test-with-dummy-secrets
+    image: python:3.11-slim
+    environment:
+      DISCORD_BOT_TOKEN: dummy_token_for_testing_imports
+      OPENAI_API_KEY: dummy_key_for_testing_imports
+    commands:
+      - echo "🧪 Testing Discord Emoji Bot with dummy environment..."
+      - apt-get update && apt-get install -y gcc
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+      - |
+        # Test that the bot can import and initialize without real tokens
+        python -c "
+        import os, sys
+        sys.path.insert(0, 'src')
+        # Test imports work
+        import discord_emoji
+        print('✅ Discord Emoji Bot modules import successfully')
+        # Test environment variable reading
+        token = os.getenv('DISCORD_BOT_TOKEN')
+        api_key = os.getenv('OPENAI_API_KEY')
+        print(f'✅ Environment variables accessible: token={len(token) if token else 0} chars, api_key={len(api_key) if api_key else 0} chars')
+        "
+      - echo "✅ Discord Emoji Bot dummy environment test passed!"
 
 # Removed services and volumes sections due to trust level restrictions

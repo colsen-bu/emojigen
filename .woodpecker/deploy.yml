@@ -1,4 +1,4 @@
-# Woodpecker CI Deploy Pipeline
+# Woodpecker CI Deploy Pipeline for Discord Emoji Bot
 # This pipeline handles production deployments
 
 # Only run on main branch and tags
@@ -10,34 +10,40 @@ steps:
   # Pre-deployment checks
   - name: pre-deploy-check
     image: python:3.11-slim
+    secrets:
+      - DISCORD_BOT_TOKEN
+      - OPENAI_API_KEY
     commands:
-      - echo "🔍 Running pre-deployment checks..."
+      - echo "🔍 Running pre-deployment checks for Discord Emoji Bot..."
       - |
         if [ -z "${DISCORD_BOT_TOKEN}" ]; then
-          echo "❌ DISCORD_BOT_TOKEN is required for deployment"
+          echo "❌ DISCORD_BOT_TOKEN is required for Discord bot deployment"
           exit 1
         fi
       - |
         if [ -z "${OPENAI_API_KEY}" ]; then
-          echo "❌ OPENAI_API_KEY is required for deployment"
+          echo "❌ OPENAI_API_KEY is required for DALL-E emoji generation"
           exit 1
         fi
-      - echo "✅ Environment variables validated"
+      - echo "✅ Discord and OpenAI environment variables validated"
 
   # Build production image
   - name: build-production
     image: docker:24
     commands:
-      - echo "🏗️ Building production Docker image..."
-      - docker build -t emoji-bot:production-${CI_COMMIT_SHA} .
-      - docker tag emoji-bot:production-${CI_COMMIT_SHA} emoji-bot:production-latest
-      - echo "✅ Production image built!"
+      - echo "🏗️ Building production Docker image for Discord Emoji Bot..."
+      - docker build -t discord-emoji-bot:production-${CI_COMMIT_SHA} .
+      - docker tag discord-emoji-bot:production-${CI_COMMIT_SHA} discord-emoji-bot:production-latest
+      - echo "✅ Discord Emoji Bot production image built!"
 
   # Deploy using docker-compose
   - name: deploy-with-compose
     image: docker:24
+    secrets:
+      - DISCORD_BOT_TOKEN
+      - OPENAI_API_KEY
     commands:
-      - echo "🚀 Deploying with docker-compose..."
+      - echo "🚀 Deploying Discord Emoji Bot with docker-compose..."
       - |
         # Install docker-compose
         apk add --no-cache curl
@@ -45,36 +51,43 @@ steps:
         chmod +x /usr/local/bin/docker-compose
       - |
         # Update the docker-compose.yml to use the new image
-        sed -i "s|build: \.|image: emoji-bot:production-${CI_COMMIT_SHA}|" docker-compose.yml
+        sed -i "s|build: \.|image: discord-emoji-bot:production-${CI_COMMIT_SHA}|" docker-compose.yml
       - |
-        # Deploy the application
+        # Deploy the Discord bot application
+        export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
+        export OPENAI_API_KEY="${OPENAI_API_KEY}"
         docker-compose down || true
         docker-compose up -d
-      - echo "✅ Deployment completed!"
+      - echo "✅ Discord Emoji Bot deployment completed!"
 
   # Health check
   - name: health-check
     image: docker:24
     commands:
-      - echo "🏥 Running health checks..."
-      - sleep 30  # Wait for container to start
+      - echo "🏥 Running health checks for Discord Emoji Bot..."
+      - sleep 30  # Wait for Discord bot container to start
       - |
-        # Check if container is running
-        if docker ps | grep emoji-bot; then
-          echo "✅ Container is running"
+        # Check if Discord bot container is running
+        if docker ps | grep discord-emoji-bot; then
+          echo "✅ Discord Emoji Bot container is running"
         else
-          echo "❌ Container is not running"
-          docker logs emoji-bot
+          echo "❌ Discord Emoji Bot container is not running"
+          docker logs discord-emoji-bot || docker logs emoji-bot
           exit 1
         fi
-      - echo "✅ Health check passed!"
+      - |
+        # Check Discord bot logs for successful connection
+        docker logs discord-emoji-bot 2>&1 | grep -E "(Ready|Logged in|Connected)" || \
+          echo "⚠️ Discord bot may not be fully connected yet"
+      - echo "✅ Discord Emoji Bot health check passed!"
 
   # Cleanup old images
   - name: cleanup
     image: docker:24
     commands:
-      - echo "🧹 Cleaning up old Docker images..."
+      - echo "🧹 Cleaning up old Discord Emoji Bot Docker images..."
       - docker image prune -f
+      - docker images | grep discord-emoji-bot || echo "No old images to clean"
       - echo "✅ Cleanup completed!"
 
 # Removed services and volumes sections due to trust level restrictions
