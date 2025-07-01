@@ -1,17 +1,11 @@
 ---
-# Minimal test configuration for Woodpecker CI
-when:
-  - event: push
-    branch: main
-
 steps:
-  - name: build
-    image: debian
+  - name: hello
+    image: alpine:latest
+    environment:
+      GREETING: "Hello"
     commands:
-      - echo "This is the build step"
-      - echo "binary-data-123" > executable
-  - name: a-test-step
-    image: golang:1.16
-    commands:
-      - echo "Testing ..."
-      - ./executable
+      - echo "${GREETING} from Woodpecker 3.x!"
+      - echo "Repository: ${CI_REPO}"
+      - echo "Branch: ${CI_COMMIT_BRANCH}"
+      - echo "Commit: ${CI_COMMIT_SHA}"
