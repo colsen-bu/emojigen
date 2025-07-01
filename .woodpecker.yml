@@ -7,7 +7,7 @@ when:
   event: [push, pull_request, tag]
 
 steps:
-  # Step 1: Code Quality and Linting
+  # Step 1: Code Quality and Linting Steps
   - name: lint
     image: python:3.11-slim
     commands:
