@@ -1,18 +1,9 @@
-# Woodpecker CI Deploy Pipeline for Discord Emoji Bot
-# This pipeline handles production deployments with simplified DinD
+# Alternative: Using Host Docker Socket (More Reliable on Oracle Cloud)
+# This approach uses the host's Docker daemon instead of DinD
 
 when:
   - event: [push, tag]
     branch: main
-
-services:
-  - name: docker
-    image: docker:24-dind
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: ""  # Disable TLS for simplicity
-    volumes:
-      - /var/lib/docker
 
 steps:
   # Pre-deployment checks
@@ -37,14 +28,13 @@ steps:
         fi
       - echo "✅ Discord and OpenAI environment variables validated"
 
-  # Build production image
+  # Build production image using host Docker
   - name: build-production
     image: docker:24-cli
-    environment:
-      DOCKER_HOST: tcp://docker:2375  # Use non-TLS port
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🏗️ Building production Docker image for Discord Emoji Bot..."
-      - sleep 10  # Wait for Docker daemon to be ready
       - docker info  # Test connection
       - docker build -t discord-emoji-bot:production-${CI_COMMIT_SHA} .
       - docker tag discord-emoji-bot:production-${CI_COMMIT_SHA} discord-emoji-bot:production-latest
@@ -55,11 +45,12 @@ steps:
     image: docker:24-cli
     detach: true
     environment:
-      DOCKER_HOST: tcp://docker:2375
       DISCORD_BOT_TOKEN:
         from_secret: DISCORD_BOT_TOKEN
       OPENAI_API_KEY:
         from_secret: OPENAI_API_KEY
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN}"
       - export OPENAI_API_KEY="${OPENAI_API_KEY}"
@@ -81,8 +72,8 @@ steps:
   # Health check
   - name: health-check
     image: docker:24-cli
-    environment:
-      DOCKER_HOST: tcp://docker:2375
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - echo "🏥 Running health checks for Discord Emoji Bot..."
       - sleep 30  # Wait for Discord bot container to start
@@ -104,8 +95,8 @@ steps:
   # Cleanup old images
   - name: cleanup
     image: docker:24-cli
-    environment:
-      DOCKER_HOST: tcp://docker:2375
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     when:
       - branch: main
     commands:
