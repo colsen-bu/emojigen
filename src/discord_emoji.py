@@ -179,8 +179,10 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         final_prompt = EMOJI_STYLE_PREFIX + self.prompt.value
 
         # Extract the first word from the prompt for the emoji name
-        first_word = self.prompt.value.split()[0] if self.prompt.value.split() else "emoji"
-        sanitized_name = self.sanitize_emoji_name(first_word)
+        first_word = (
+            self.prompt.value.split()[0] if self.prompt.value.split() else "emoji"
+        )
+        sanitized_name = self.sanitize_emoji_name(first_word, interaction.guild)
 
         # Generate image with DALL-E
         try:
