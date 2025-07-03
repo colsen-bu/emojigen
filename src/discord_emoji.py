@@ -175,8 +175,9 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
         # Style injection for better emoji generation
         EMOJI_STYLE_PREFIX = (
-            "An emoji in a clear, minimal, sticker-like style. "
-            "Designed to be recognizable at small size. Prompt: "
+            "A flat, high-contrast, minimalistic emoji design. "
+            "Bold colors, clear outlines, and optimized for small sizes. "
+            "Avoid excessive detail or background elements. Prompt: "
         )
         final_prompt = EMOJI_STYLE_PREFIX + self.prompt.value
 
