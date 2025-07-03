@@ -119,7 +119,7 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
     """Modal dialog for collecting emoji generation parameters."""
 
     prompt = discord.ui.TextInput(
-        label="Prompt for Image Generation",
+        label="Prompt for Emoji Generation",
         style=discord.TextStyle.paragraph,
         placeholder="A cute smiling orange cat emoji",
     )
@@ -156,6 +156,8 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
             if len(sanitized) > 32:  # Ensure it doesn't exceed the length limit
                 sanitized = sanitized[:32].rstrip("_")
 
+        return sanitized  # Ensure a valid sanitized name is returned
+
     async def on_submit(self, interaction: discord.Interaction):
         """Handle modal submission and generate emoji reaction."""
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -173,7 +175,7 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
         # Style injection for better emoji generation
         EMOJI_STYLE_PREFIX = (
-            "An emoji in a clear, minimal, round, sticker-like style. "
+            "An emoji in a clear, minimal, sticker-like style. "
             "Designed to be recognizable at small size. Prompt: "
         )
         final_prompt = EMOJI_STYLE_PREFIX + self.prompt.value
