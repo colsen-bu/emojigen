@@ -171,12 +171,12 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
         # Updated style injection for better emoji generation
         EMOJI_STYLE_PREFIX = (
-        "A large, centered emoji design filling 80% of the image canvas. "
-        "Flat vector style with high contrast and bold, vibrant colors. "
-        "Minimal background, maximum zoom on the emoji subject. "
-        "Clean, thick outlines and simple geometric shapes. "
-        "Optimized for visibility at small sizes with no fine details. "
-        "Square format, no borders or margins. Prompt: "
+            "A large, centered emoji design filling 100% of the image canvas. "
+            "Flat vector style with high contrast and bold, vibrant colors. "
+            "Minimal background, maximum zoom on the emoji subject. "
+            "Clean, thick outlines and simple geometric shapes. "
+            "Optimized for visibility at small sizes with no fine details. "
+            "Square format, no borders or margins. Prompt: "
         )
         final_prompt = EMOJI_STYLE_PREFIX + self.prompt.value
 
@@ -244,15 +244,15 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
             # Open and zoom in on the center of the image
             image = Image.open(io.BytesIO(image_data))
-            
-            # Calculate crop box for center zoom (crop to 80% of original size)
+
+            # Calculate crop box for center zoom (crop to 70% of original size)
             width, height = image.size
-            crop_size = min(width, height) * 0.8
+            crop_size = min(width, height) * 0.7
             left = (width - crop_size) / 2
             top = (height - crop_size) / 2
             right = left + crop_size
             bottom = top + crop_size
-            
+
             # Crop to center and then resize
             image = image.crop((left, top, right, bottom))
             image = image.resize((128, 128), Image.Resampling.LANCZOS)
@@ -325,12 +325,12 @@ async def generate_emoji(interaction: discord.Interaction, prompt: str):
 
     # Style injection for better emoji generation
     EMOJI_STYLE_PREFIX = (
-    "A large, centered emoji design filling 80% of the image canvas. "
-    "Flat vector style with high contrast and bold, vibrant colors. "
-    "Minimal background, maximum zoom on the emoji subject. "
-    "Clean, thick outlines and simple geometric shapes. "
-    "Optimized for visibility at small sizes with no fine details. "
-    "Square format, no borders or margins. Prompt: "
+        "A large, centered emoji design filling 100% of the image canvas. "
+        "Flat vector style with high contrast and bold, vibrant colors. "
+        "Minimal background, maximum zoom on the emoji subject. "
+        "Clean, thick outlines and simple geometric shapes. "
+        "Optimized for visibility at small sizes with no fine details. "
+        "Square format, no borders or margins. Prompt: "
     )
     final_prompt = EMOJI_STYLE_PREFIX + prompt
 
@@ -396,15 +396,15 @@ async def generate_emoji(interaction: discord.Interaction, prompt: str):
 
         # Open and zoom in on the center of the image
         image = Image.open(io.BytesIO(image_data))
-        
-        # Calculate crop box for center zoom (crop to 80% of original size)
+
+        # Calculate crop box for center zoom (crop to 70% of original size)
         width, height = image.size
-        crop_size = min(width, height) * 0.8
+        crop_size = min(width, height) * 0.7
         left = (width - crop_size) / 2
         top = (height - crop_size) / 2
         right = left + crop_size
         bottom = top + crop_size
-        
+
         # Crop to center and then resize
         image = image.crop((left, top, right, bottom))
         image = image.resize((128, 128), Image.Resampling.LANCZOS)
