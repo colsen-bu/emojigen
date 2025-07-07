@@ -124,7 +124,8 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         super().__init__()
         self.target_message = target_message
 
-    def sanitize_emoji_name(self, name: str, guild: discord.Guild) -> str:
+    @staticmethod
+    def sanitize_emoji_name(name: str, guild: discord.Guild) -> str:
         """Sanitize emoji name to meet Discord requirements and ensure uniqueness."""
         import re
 
@@ -168,10 +169,10 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
                 ephemeral=True,
             )
 
-        # Style injection for better emoji generation
+        # Updated style injection for better emoji generation
         EMOJI_STYLE_PREFIX = (
-            "A flat, high-contrast, minimalistic emoji design. "
-            "Bold colors, clear outlines, and optimized for small sizes. "
+            "A flat, high-contrast, minimalistic emoji design with ample negative space. "
+            "Circular design, bold colors, clear outlines, and optimized for small sizes. "
             "Avoid excessive detail or background elements. Prompt: "
         )
         final_prompt = EMOJI_STYLE_PREFIX + self.prompt.value
@@ -182,10 +183,14 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         )
         sanitized_name = self.sanitize_emoji_name(first_word, interaction.guild)
 
-        # Generate image with DALL-E
+        # Generate image with GPT-Image-1
         try:
             response = openai_client.images.generate(
-                model="dall-e-3", prompt=final_prompt, n=1, size="1024x1024"
+                model="gpt-image-1",
+                prompt=final_prompt,
+                n=1,
+                quality="medium",
+                size="1024x1024",
             )
             image_url = response.data[0].url
         except Exception as e:
@@ -239,8 +244,15 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
             await self.target_message.add_reaction(emoji)
 
             # Send success message to the designated response channel
-            success_message = f"✅ **Success!! Emoji Generated from: `{self.prompt.value}`**"
+            success_message = (
+                f"✅ **Success!! Emoji Generated from: `{self.prompt.value}`**"
+            )
             await response_channel.send(success_message)
+
+            # Send ephemeral confirmation to terminate the generating state
+            await interaction.followup.send(
+                "✅ Emoji generated and added!", ephemeral=True
+            )
 
         except discord.HTTPException as e:
             await interaction.followup.send(f"❌ Failed to react: {e}", ephemeral=True)
@@ -250,6 +262,115 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
             await emoji.delete()
         except discord.HTTPException:
             pass
+
+
+@app_commands.command(
+    name="generate_emoji", description="Generate a custom emoji using a prompt"
+)
+@app_commands.describe(prompt="The prompt for generating the emoji")
+async def generate_emoji(interaction: discord.Interaction, prompt: str):
+    """Slash command to generate a custom emoji."""
+    await interaction.response.defer(thinking=True, ephemeral=True)
+
+    # Find appropriate response channel
+    response_channel = await get_response_channel(
+        interaction.guild, interaction.channel
+    )
+
+    if not response_channel:
+        return await interaction.followup.send(
+            "❌ I don't have permission to send messages in any channel.",
+            ephemeral=True,
+        )
+
+    # Style injection for better emoji generation
+    EMOJI_STYLE_PREFIX = (
+        "A flat, high-contrast, minimalistic emoji design with ample negative space. "
+        "Circular design, bold colors, clear outlines, and optimized for small sizes. "
+        "Avoid excessive detail or background elements. Prompt: "
+    )
+    final_prompt = EMOJI_STYLE_PREFIX + prompt
+
+    # Extract the first word from the prompt for the emoji name
+    first_word = prompt.split()[0] if prompt.split() else "emoji"
+    sanitized_name = EmojiPromptModal.sanitize_emoji_name(
+        None, first_word, interaction.guild
+    )
+
+    # Generate image with GPT-Image-1
+    try:
+        response = openai_client.images.generate(
+            model="gpt-image-1",
+            prompt=final_prompt,
+            n=1,
+            quality="medium",
+            size="1024x1024",
+        )
+        image_url = response.data[0].url
+    except Exception as e:
+        return await interaction.followup.send(
+            f"❌ Failed to generate image: {e}", ephemeral=True
+        )
+
+    # Download and resize the generated image for emoji use
+    async with aiohttp.ClientSession() as session:
+        async with session.get(image_url) as resp:
+            if resp.status != 200:
+                return await interaction.followup.send(
+                    "❌ Could not download image.", ephemeral=True
+                )
+            image_data = await resp.read()
+
+    # Resize image to 128x128 for optimal emoji size
+    try:
+        import io
+
+        from PIL import Image
+
+        # Open and resize the image
+        image = Image.open(io.BytesIO(image_data))
+        image = image.resize((128, 128), Image.Resampling.LANCZOS)
+
+        # Convert to bytes for Discord
+        output = io.BytesIO()
+        image.save(output, format="PNG")
+        image_data = output.getvalue()
+    except Exception as e:
+        # If PIL fails, use original image (Discord will auto-resize)
+        print(f"⚠️ Image resize failed, using original: {e}")
+
+    # Create custom emoji on the server
+    try:
+        emoji = await interaction.guild.create_custom_emoji(
+            name=sanitized_name, image=image_data
+        )
+    except discord.Forbidden:
+        return await interaction.followup.send(
+            "❌ I don't have permission to add emojis.", ephemeral=True
+        )
+    except discord.HTTPException as e:
+        return await interaction.followup.send(
+            f"❌ Failed to create emoji '{sanitized_name}': {e}", ephemeral=True
+        )
+
+    # Send success message to the designated response channel
+    success_message = f"✅ **Success!! Emoji Generated from: `{prompt}`**"
+    await response_channel.send(success_message)
+
+    # Send ephemeral confirmation to terminate the generating state
+    await interaction.followup.send("✅ Emoji generated and added!", ephemeral=True)
+
+    # Clean up emoji to save server space
+    try:
+        await emoji.delete()
+    except discord.HTTPException:
+        pass
+
+
+# Add the slash command to the bot
+def setup(bot):
+    """Add the generate_emoji slash command to the bot."""
+    bot.tree.add_command(generate_emoji)
 
 
 if __name__ == "__main__":
