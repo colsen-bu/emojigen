@@ -74,32 +74,20 @@ bot = EmojiBot()
 
 async def get_response_channel(guild, current_channel):
     """Get the appropriate channel for bot responses."""
-    # Check if a specific response channel is configured
-    if RESPONSE_CHANNEL:
-        # Try by channel ID first
-        if RESPONSE_CHANNEL.isdigit():
-            channel = guild.get_channel(int(RESPONSE_CHANNEL))
-            if channel:
-                return channel
+    # Hardcoded specific channel ID for bot responses
+    target_channel_id = 992467592180670485
+    channel = guild.get_channel(target_channel_id)
+    if channel:
+        perms = channel.permissions_for(guild.me)
+        if perms.send_messages:
+            return channel
 
-        # Try by channel name
-        for channel in guild.text_channels:
-            if channel.name.lower() == RESPONSE_CHANNEL.lower():
-                return channel
-
-    # Look for "bot-spam" channel specifically
-    for channel in guild.text_channels:
-        if channel.name.lower() == "bot-spam":
-            perms = channel.permissions_for(guild.me)
-            if perms.send_messages:
-                return channel
-
-    # Check if bot can send messages in current channel
+    # Fallback: Check if bot can send messages in current channel
     permissions = current_channel.permissions_for(guild.me)
     if permissions.send_messages:
         return current_channel
 
-    # Find any channel where bot can send messages
+    # Last resort: Find any channel where bot can send messages
     for channel in guild.text_channels:
         perms = channel.permissions_for(guild.me)
         if perms.send_messages:
@@ -251,7 +239,9 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
             await self.target_message.add_reaction(emoji)
 
             # Send ephemeral success message to user with the prompt used
-            success_message = f"✅ **Success!! Emoji Generated from: `{self.prompt.value}`**"
+            success_message = (
+                f"✅ **Success!! Emoji Generated from: `{self.prompt.value}`**"
+            )
             await interaction.followup.send(success_message, ephemeral=True)
 
         except discord.HTTPException as e:
