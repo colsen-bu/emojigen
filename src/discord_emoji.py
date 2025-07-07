@@ -185,31 +185,53 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
         # Generate image with GPT-Image-1
         try:
-            response = openai_client.images.generate(
-                model="gpt-image-1",
-                prompt=final_prompt,
-                n=1,
-                quality="medium",
-                size="1024x1024",
+            import asyncio
+            
+            # Run the OpenAI call in a thread pool to avoid blocking
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: openai_client.images.generate(
+                        model="gpt-image-1",
+                        prompt=final_prompt,
+                        n=1,
+                        quality="medium",
+                        size="1024x1024",
+                    )
+                ),
+                timeout=30.0  # 30 second timeout
             )
             if not response.data or not response.data[0].url:
                 return await interaction.followup.send(
                     "❌ No image URL returned from OpenAI", ephemeral=True
                 )
             image_url = str(response.data[0].url)
+        except asyncio.TimeoutError:
+            return await interaction.followup.send(
+                "❌ OpenAI API request timed out. Please try again.", ephemeral=True
+            )
         except Exception as e:
             return await interaction.followup.send(
                 f"❌ Failed to generate image: {e}", ephemeral=True
             )
 
         # Download and resize the generated image for emoji use
-        async with aiohttp.ClientSession() as session:
-            async with session.get(image_url) as resp:
-                if resp.status != 200:
-                    return await interaction.followup.send(
-                        "❌ Could not download image.", ephemeral=True
-                    )
-                image_data = await resp.read()
+        try:
+            timeout = aiohttp.ClientTimeout(total=30)  # 30 second timeout
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(image_url) as resp:
+                    if resp.status != 200:
+                        return await interaction.followup.send(
+                            "❌ Could not download image.", ephemeral=True
+                        )
+                    image_data = await resp.read()
+        except asyncio.TimeoutError:
+            return await interaction.followup.send(
+                "❌ Image download timed out. Please try again.", ephemeral=True
+            )
+        except Exception as e:
+            return await interaction.followup.send(
+                f"❌ Failed to download image: {e}", ephemeral=True
+            )
 
         # Resize image to 128x128 for optimal emoji size
         try:
@@ -301,31 +323,53 @@ async def generate_emoji(interaction: discord.Interaction, prompt: str):
 
     # Generate image with GPT-Image-1
     try:
-        response = openai_client.images.generate(
-            model="gpt-image-1",
-            prompt=final_prompt,
-            n=1,
-            quality="medium",
-            size="1024x1024",
+        import asyncio
+        
+        # Run the OpenAI call in a thread pool to avoid blocking
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: openai_client.images.generate(
+                    model="gpt-image-1",
+                    prompt=final_prompt,
+                    n=1,
+                    quality="medium",
+                    size="1024x1024",
+                )
+            ),
+            timeout=30.0  # 30 second timeout
         )
         if not response.data or not response.data[0].url:
             return await interaction.followup.send(
                 "❌ No image URL returned from OpenAI", ephemeral=True
             )
         image_url = str(response.data[0].url)
+    except asyncio.TimeoutError:
+        return await interaction.followup.send(
+            "❌ OpenAI API request timed out. Please try again.", ephemeral=True
+        )
     except Exception as e:
         return await interaction.followup.send(
             f"❌ Failed to generate image: {e}", ephemeral=True
         )
 
     # Download and resize the generated image for emoji use
-    async with aiohttp.ClientSession() as session:
-        async with session.get(image_url) as resp:
-            if resp.status != 200:
-                return await interaction.followup.send(
-                    "❌ Could not download image.", ephemeral=True
-                )
-            image_data = await resp.read()
+    try:
+        timeout = aiohttp.ClientTimeout(total=30)  # 30 second timeout
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(image_url) as resp:
+                if resp.status != 200:
+                    return await interaction.followup.send(
+                        "❌ Could not download image.", ephemeral=True
+                    )
+                image_data = await resp.read()
+    except asyncio.TimeoutError:
+        return await interaction.followup.send(
+            "❌ Image download timed out. Please try again.", ephemeral=True
+        )
+    except Exception as e:
+        return await interaction.followup.send(
+            f"❌ Failed to download image: {e}", ephemeral=True
+        )
 
     # Resize image to 128x128 for optimal emoji size
     try:
