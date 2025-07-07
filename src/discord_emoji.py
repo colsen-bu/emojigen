@@ -192,7 +192,11 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
                 quality="medium",
                 size="1024x1024",
             )
-            image_url = response.data[0].url
+            if not response.data or not response.data[0].url:
+                return await interaction.followup.send(
+                    "❌ No image URL returned from OpenAI", ephemeral=True
+                )
+            image_url = str(response.data[0].url)
         except Exception as e:
             return await interaction.followup.send(
                 f"❌ Failed to generate image: {e}", ephemeral=True
@@ -293,9 +297,7 @@ async def generate_emoji(interaction: discord.Interaction, prompt: str):
 
     # Extract the first word from the prompt for the emoji name
     first_word = prompt.split()[0] if prompt.split() else "emoji"
-    sanitized_name = EmojiPromptModal.sanitize_emoji_name(
-        None, first_word, interaction.guild
-    )
+    sanitized_name = EmojiPromptModal.sanitize_emoji_name(first_word, interaction.guild)
 
     # Generate image with GPT-Image-1
     try:
@@ -306,7 +308,11 @@ async def generate_emoji(interaction: discord.Interaction, prompt: str):
             quality="medium",
             size="1024x1024",
         )
-        image_url = response.data[0].url
+        if not response.data or not response.data[0].url:
+            return await interaction.followup.send(
+                "❌ No image URL returned from OpenAI", ephemeral=True
+            )
+        image_url = str(response.data[0].url)
     except Exception as e:
         return await interaction.followup.send(
             f"❌ Failed to generate image: {e}", ephemeral=True
