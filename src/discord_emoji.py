@@ -75,7 +75,7 @@ bot = EmojiBot()
 async def get_response_channel(guild, current_channel):
     """Get the appropriate channel for bot responses."""
     # Hardcoded specific channel ID for bot responses
-    target_channel_id = 1389361426686283969
+    target_channel_id = 992467592180670485
     channel = guild.get_channel(target_channel_id)
     if channel:
         perms = channel.permissions_for(guild.me)
@@ -238,11 +238,9 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         try:
             await self.target_message.add_reaction(emoji)
 
-            # Send ephemeral success message to user with the prompt used
-            success_message = (
-                f"✅ **Success!! Emoji Generated from: `{self.prompt.value}`**"
-            )
-            await interaction.followup.send(success_message, ephemeral=True)
+            # Send success message to the designated response channel
+            success_message = f"✅ **Success!! Emoji Generated from: `{self.prompt.value}`**"
+            await response_channel.send(success_message)
 
         except discord.HTTPException as e:
             await interaction.followup.send(f"❌ Failed to react: {e}", ephemeral=True)
