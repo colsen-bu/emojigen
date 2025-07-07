@@ -186,19 +186,19 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
         # Generate image with GPT-Image-1
         try:
             import asyncio
-            
+
             # Run the OpenAI call in a thread pool to avoid blocking
             response = await asyncio.wait_for(
                 asyncio.to_thread(
                     lambda: openai_client.images.generate(
-                        model="gpt-image-1",
+                        model="dall-e-3",
                         prompt=final_prompt,
                         n=1,
-                        quality="medium",
+                        quality="standard",
                         size="1024x1024",
                     )
                 ),
-                timeout=30.0  # 30 second timeout
+                timeout=30.0,  # 30 second timeout
             )
             if not response.data or not response.data[0].url:
                 return await interaction.followup.send(
@@ -324,19 +324,19 @@ async def generate_emoji(interaction: discord.Interaction, prompt: str):
     # Generate image with GPT-Image-1
     try:
         import asyncio
-        
+
         # Run the OpenAI call in a thread pool to avoid blocking
         response = await asyncio.wait_for(
             asyncio.to_thread(
                 lambda: openai_client.images.generate(
-                    model="gpt-image-1",
+                    model="dall-e-3",
                     prompt=final_prompt,
                     n=1,
-                    quality="medium",
+                    quality="standard",
                     size="1024x1024",
                 )
             ),
-            timeout=30.0  # 30 second timeout
+            timeout=30.0,  # 30 second timeout
         )
         if not response.data or not response.data[0].url:
             return await interaction.followup.send(
