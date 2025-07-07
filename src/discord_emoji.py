@@ -75,7 +75,7 @@ bot = EmojiBot()
 async def get_response_channel(guild, current_channel):
     """Get the appropriate channel for bot responses."""
     # Hardcoded specific channel ID for bot responses
-    target_channel_id = 992467592180670485
+    target_channel_id = 1389361426686283969
     channel = guild.get_channel(target_channel_id)
     if channel:
         perms = channel.permissions_for(guild.me)
