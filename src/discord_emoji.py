@@ -233,7 +233,9 @@ class EmojiSelectionView(discord.ui.View):
                 return
 
             await interaction.response.send_modal(
-                StaticEmojiSearchModal(target_message=self.target_message, original_interaction=interaction)
+                StaticEmojiSearchModal(
+                    target_message=self.target_message, original_interaction=interaction
+                )
             )
         except discord.NotFound:
             print("⚠️ Static emoji button interaction failed due to unknown interaction")
@@ -498,7 +500,11 @@ class StaticEmojiView(discord.ui.View):
     """View for selecting static emoji to react with."""
 
     def __init__(
-        self, target_message: discord.Message, search_results: list, query: str = "", original_interaction=None
+        self,
+        target_message: discord.Message,
+        search_results: list,
+        query: str = "",
+        original_interaction=None,
     ):
         """Initialize the static emoji view with search results."""
         super().__init__(timeout=300)  # 5 minute timeout
@@ -509,7 +515,9 @@ class StaticEmojiView(discord.ui.View):
 
         # Add select menu if we have results
         if search_results:
-            self.add_item(StaticEmojiSelect(search_results, target_message, original_interaction))
+            self.add_item(
+                StaticEmojiSelect(search_results, target_message, original_interaction)
+            )
 
     @discord.ui.button(label="🔍 Search Again", style=discord.ButtonStyle.secondary)
     async def search_again(
@@ -558,7 +566,12 @@ class StaticEmojiView(discord.ui.View):
 class StaticEmojiSelect(discord.ui.Select):
     """Select menu for choosing a static emoji."""
 
-    def __init__(self, emoji_files: list, target_message: discord.Message, original_interaction=None):
+    def __init__(
+        self,
+        emoji_files: list,
+        target_message: discord.Message,
+        original_interaction=None,
+    ):
         """Initialize the static emoji select menu with available emoji files."""
         self.target_message = target_message
         self.original_interaction = original_interaction
@@ -663,11 +676,12 @@ class StaticEmojiSelect(discord.ui.Select):
                     return await self.original_interaction.edit_original_response(
                         content=f"❌ Selected emoji file not found at: {file_path}",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 else:
                     return await interaction.followup.send(
-                        f"❌ Selected emoji file not found at: {file_path}", ephemeral=True
+                        f"❌ Selected emoji file not found at: {file_path}",
+                        ephemeral=True,
                     )
 
             # Find appropriate response channel
@@ -681,7 +695,7 @@ class StaticEmojiSelect(discord.ui.Select):
                     return await self.original_interaction.edit_original_response(
                         content="❌ I don't have permission to send messages in any channel.",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 else:
                     return await interaction.followup.send(
@@ -705,7 +719,7 @@ class StaticEmojiSelect(discord.ui.Select):
                     return await self.original_interaction.edit_original_response(
                         content=f"❌ Failed to read emoji file: {e}",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 else:
                     return await interaction.followup.send(
@@ -739,7 +753,7 @@ class StaticEmojiSelect(discord.ui.Select):
                     return await self.original_interaction.edit_original_response(
                         content="❌ I don't have permission to add emojis.",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 else:
                     return await interaction.followup.send(
@@ -751,11 +765,12 @@ class StaticEmojiSelect(discord.ui.Select):
                     return await self.original_interaction.edit_original_response(
                         content=f"❌ Failed to create emoji '{sanitized_name}': {e}",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 else:
                     return await interaction.followup.send(
-                        f"❌ Failed to create emoji '{sanitized_name}': {e}", ephemeral=True
+                        f"❌ Failed to create emoji '{sanitized_name}': {e}",
+                        ephemeral=True,
                     )
 
             # Add emoji reaction to the target message
@@ -771,7 +786,7 @@ class StaticEmojiSelect(discord.ui.Select):
                     await self.original_interaction.edit_original_response(
                         content="✅ Static emoji added as reaction!",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 else:
                     await interaction.followup.send(
@@ -782,9 +797,7 @@ class StaticEmojiSelect(discord.ui.Select):
                 # Update the original message instead of sending a new one
                 if self.original_interaction:
                     await self.original_interaction.edit_original_response(
-                        content=f"❌ Failed to react: {e}",
-                        embed=None,
-                        view=None
+                        content=f"❌ Failed to react: {e}", embed=None, view=None
                     )
                 else:
                     await interaction.followup.send(
@@ -803,9 +816,10 @@ class StaticEmojiSelect(discord.ui.Select):
                 # Update the original message instead of sending a new one
                 if self.original_interaction:
                     await self.original_interaction.edit_original_response(
-                        content="❌ An error occurred while adding the static emoji. Please try again.",
+                        content="❌ An error occurred while adding the static emoji. "
+                        "Please try again.",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 elif not interaction.response.is_done():
                     await interaction.response.send_message(
@@ -869,9 +883,10 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
                 # Update the original message instead of sending a new one
                 if self.original_interaction:
                     return await self.original_interaction.edit_original_response(
-                        content=f"❌ No static emojis found for query: `{query}`\nAvailable emojis: {len(get_static_emoji_files())} total",
+                        content=f"❌ No static emojis found for query: `{query}`\n"
+                        f"Available emojis: {len(get_static_emoji_files())} total",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 else:
                     return await interaction.followup.send(
@@ -881,15 +896,15 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
                     )
 
             # Create view with search results
-            view = StaticEmojiView(self.target_message, search_results, query, self.original_interaction)
+            view = StaticEmojiView(
+                self.target_message, search_results, query, self.original_interaction
+            )
             embed = view._create_embed()
 
             # Update the original message instead of sending a new one
             if self.original_interaction:
                 await self.original_interaction.edit_original_response(
-                    content=None,
-                    embed=embed,
-                    view=view
+                    content=None, embed=embed, view=view
                 )
             else:
                 await interaction.followup.send(embed=embed, view=view, ephemeral=True)
@@ -900,9 +915,10 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
                 # Update the original message instead of sending a new one
                 if self.original_interaction:
                     await self.original_interaction.edit_original_response(
-                        content="❌ An error occurred while searching for static emojis. Please try again.",
+                        content="❌ An error occurred while searching for static emojis. "
+                        "Please try again.",
                         embed=None,
-                        view=None
+                        view=None,
                     )
                 elif not interaction.response.is_done():
                     await interaction.response.send_message(
