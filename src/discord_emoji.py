@@ -45,6 +45,9 @@ class EmojiBot(commands.Bot):
         if GUILD_ID and GUILD_ID.strip():
             try:
                 guild_id = int(GUILD_ID)
+                # Clear old commands first, then sync new ones
+                print(f"🔄 Clearing old commands for guild {guild_id}...")
+                self.tree.clear_commands(guild=discord.Object(id=guild_id))
                 synced = await self.tree.sync(guild=discord.Object(id=guild_id))
                 self.synced_guilds.add(guild_id)
                 print(
@@ -60,6 +63,8 @@ class EmojiBot(commands.Bot):
         """Sync commands immediately when bot joins a new server."""
         if guild.id not in self.synced_guilds:
             try:
+                # Clear any existing commands first
+                self.tree.clear_commands(guild=guild)
                 await self.tree.sync(guild=guild)
                 self.synced_guilds.add(guild.id)
                 print(f"✅ Commands synced to new guild: {guild.name} ({guild.id})")
@@ -80,6 +85,9 @@ class EmojiBot(commands.Bot):
         for guild in self.guilds:
             if guild.id not in self.synced_guilds:
                 try:
+                    # Clear old commands first to avoid conflicts
+                    print(f"🔄 Clearing old commands for guild: {guild.name}")
+                    self.tree.clear_commands(guild=guild)
                     synced = await self.tree.sync(guild=guild)
                     self.synced_guilds.add(guild.id)
                     print(
@@ -595,6 +603,21 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
             )
 
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+
+@bot.command(name="sync_commands")
+@commands.is_owner()
+async def sync_commands(ctx):
+    """Manual command to sync all app commands (owner only)."""
+    try:
+        # Clear and sync for the current guild
+        bot.tree.clear_commands(guild=ctx.guild)
+        synced = await bot.tree.sync(guild=ctx.guild)
+        await ctx.send(f"✅ Synced {len(synced)} commands to {ctx.guild.name}")
+        for cmd in synced:
+            print(f"  - {cmd.name} ({cmd.type.name})")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to sync commands: {e}")
 
 
 # Register all commands with the bot
