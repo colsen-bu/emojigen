@@ -7,6 +7,7 @@ import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
+
 from openai import OpenAI
 
 # Configuration from environment
@@ -36,17 +37,21 @@ class EmojiBot(commands.Bot):
     async def setup_hook(self):
         """Set up the bot by adding commands and syncing to guilds."""
         # Commands will be added after bot initialization
-        print(f"🔧 Setup hook called. Registered commands: "
-              f"{len(self.tree.get_commands())}")
-        
+        print(
+            f"🔧 Setup hook called. Registered commands: "
+            f"{len(self.tree.get_commands())}"
+        )
+
         # If GUILD_ID is specified, sync to that guild immediately (for testing)
         if GUILD_ID and GUILD_ID.strip():
             try:
                 guild_id = int(GUILD_ID)
                 synced = await self.tree.sync(guild=discord.Object(id=guild_id))
                 self.synced_guilds.add(guild_id)
-                print(f"✅ Commands synced to test guild {guild_id}: "
-                      f"{len(synced)} commands")
+                print(
+                    f"✅ Commands synced to test guild {guild_id}: "
+                    f"{len(synced)} commands"
+                )
                 for cmd in synced:
                     print(f"  - {cmd.name} ({cmd.type.name})")
             except ValueError:
@@ -67,7 +72,7 @@ class EmojiBot(commands.Bot):
         print(f"✅ Logged in as {self.user}")
         print(f"📊 Connected to {len(self.guilds)} server(s)")
         print(f"🔧 Total registered commands: {len(self.tree.get_commands())}")
-        
+
         # List all registered commands for debugging
         for cmd in self.tree.get_commands():
             print(f"  - {cmd.name} ({cmd.type.name})")
@@ -78,8 +83,10 @@ class EmojiBot(commands.Bot):
                 try:
                     synced = await self.tree.sync(guild=guild)
                     self.synced_guilds.add(guild.id)
-                    print(f"✅ Commands synced to existing guild: {guild.name} "
-                          f"({len(synced)} commands)")
+                    print(
+                        f"✅ Commands synced to existing guild: {guild.name} "
+                        f"({len(synced)} commands)"
+                    )
                 except discord.HTTPException as e:
                     print(f"❌ Failed to sync to {guild.name}: {e}")
 
@@ -317,147 +324,6 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
             await emoji.delete()
         except discord.HTTPException:
             pass
-
-
-@app_commands.command(
-    name="generate_emoji", description="Generate a custom emoji using a prompt"
-)
-@app_commands.describe(prompt="The prompt for generating the emoji")
-async def generate_emoji(interaction: discord.Interaction, prompt: str):
-    """Slash command to generate a custom emoji."""
-    await interaction.response.defer(thinking=True, ephemeral=True)
-
-    # Find appropriate response channel
-    response_channel = await get_response_channel(
-        interaction.guild, interaction.channel
-    )
-
-    if not response_channel:
-        return await interaction.followup.send(
-            "❌ I don't have permission to send messages in any channel.",
-            ephemeral=True,
-        )
-
-    # Style injection for better emoji generation
-    EMOJI_STYLE_PREFIX = (
-        "A large, centered emoji design filling 100% of the image canvas. "
-        "Flat vector style with high contrast and bold, vibrant colors. "
-        "Minimal background, maximum zoom on the emoji subject. "
-        "Clean, thick outlines and simple geometric shapes. "
-        "Optimized for visibility at small sizes with no fine details. "
-        "Square format, no borders or margins. Prompt: "
-    )
-    final_prompt = EMOJI_STYLE_PREFIX + prompt
-
-    # Extract the first word from the prompt for the emoji name
-    first_word = prompt.split()[0] if prompt.split() else "emoji"
-    sanitized_name = EmojiPromptModal.sanitize_emoji_name(first_word, interaction.guild)
-
-    # Generate image with GPT-Image-1
-    try:
-        import asyncio
-
-        # Run the OpenAI call in a thread pool to avoid blocking
-        response = await asyncio.wait_for(
-            asyncio.to_thread(
-                lambda: openai_client.images.generate(
-                    model="dall-e-3",
-                    prompt=final_prompt,
-                    n=1,
-                    quality="standard",
-                    size="1024x1024",
-                )
-            ),
-            timeout=30.0,  # 30 second timeout
-        )
-        if not response.data or not response.data[0].url:
-            return await interaction.followup.send(
-                "❌ No image URL returned from OpenAI", ephemeral=True
-            )
-        image_url = str(response.data[0].url)
-    except asyncio.TimeoutError:
-        return await interaction.followup.send(
-            "❌ OpenAI API request timed out. Please try again.", ephemeral=True
-        )
-    except Exception as e:
-        return await interaction.followup.send(
-            f"❌ Failed to generate image: {e}", ephemeral=True
-        )
-
-    # Download and resize the generated image for emoji use
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)  # 30 second timeout
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(image_url) as resp:
-                if resp.status != 200:
-                    return await interaction.followup.send(
-                        "❌ Could not download image.", ephemeral=True
-                    )
-                image_data = await resp.read()
-    except asyncio.TimeoutError:
-        return await interaction.followup.send(
-            "❌ Image download timed out. Please try again.", ephemeral=True
-        )
-    except Exception as e:
-        return await interaction.followup.send(
-            f"❌ Failed to download image: {e}", ephemeral=True
-        )
-
-    # Resize image to 128x128 for optimal emoji size
-    try:
-        import io
-
-        from PIL import Image
-
-        # Open and zoom in on the center of the image
-        image = Image.open(io.BytesIO(image_data))
-
-        # Calculate crop box for center zoom (crop to 70% of original size)
-        width, height = image.size
-        crop_size = min(width, height) * 0.7
-        left = (width - crop_size) / 2
-        top = (height - crop_size) / 2
-        right = left + crop_size
-        bottom = top + crop_size
-
-        # Crop to center and then resize
-        image = image.crop((left, top, right, bottom))
-        image = image.resize((128, 128), Image.Resampling.LANCZOS)
-
-        # Convert to bytes for Discord
-        output = io.BytesIO()
-        image.save(output, format="PNG")
-        image_data = output.getvalue()
-    except Exception as e:
-        # If PIL fails, use original image (Discord will auto-resize)
-        print(f"⚠️ Image resize failed, using original: {e}")
-
-    # Create custom emoji on the server
-    try:
-        emoji = await interaction.guild.create_custom_emoji(
-            name=sanitized_name, image=image_data
-        )
-    except discord.Forbidden:
-        return await interaction.followup.send(
-            "❌ I don't have permission to add emojis.", ephemeral=True
-        )
-    except discord.HTTPException as e:
-        return await interaction.followup.send(
-            f"❌ Failed to create emoji '{sanitized_name}': {e}", ephemeral=True
-        )
-
-    # Send success message to the designated response channel
-    success_message = f"✅ **Success!! Emoji Generated from: `{prompt}`**"
-    await response_channel.send(success_message)
-
-    # Send ephemeral confirmation to terminate the generating state
-    await interaction.followup.send("✅ Emoji generated and added!", ephemeral=True)
-
-    # Clean up emoji to save server space
-    try:
-        await emoji.delete()
-    except discord.HTTPException:
-        pass
 
 
 def get_static_emoji_files():
@@ -709,104 +575,12 @@ async def static_emoji_reaction(
     )
 
 
-@app_commands.command(
-    name="browse_static_emojis", description="Browse and search static emojis"
-)
-@app_commands.describe(query="Search query for static emojis (optional)")
-async def browse_static_emojis(interaction: discord.Interaction, query: str = ""):
-    """Slash command to browse static emojis."""
-    await interaction.response.defer(thinking=True, ephemeral=True)
-
-    search_results = search_static_emojis(query)
-
-    if not search_results:
-        total_count = len(get_static_emoji_files())
-        return await interaction.followup.send(
-            f"❌ No static emojis found for query: `{query}`\n"
-            f"Available emojis: {total_count} total\n"
-            f"Try searching for: cat, smile, logo, pixel, etc.",
-            ephemeral=True,
-        )
-
-    # Create an embed showing the search results
-    embed = discord.Embed(
-        title="🖼️ Static Emoji Browser",
-        description=f"Found {len(search_results)} emojis"
-        + (f" for `{query}`" if query else ""),
-        color=0x5865F2,
-    )
-
-    # Show first few results in embed
-    preview_list = []
-    for i, filename in enumerate(search_results[:10]):
-        clean_name = (
-            filename.replace("_", " ")
-            .replace(".png", "")
-            .replace(".jpg", "")
-            .replace(".jpeg", "")
-            .replace(".gif", "")
-        )
-        preview_list.append(f"{i+1}. {clean_name}")
-
-    embed.add_field(
-        name="📋 Preview (first 10)", value="\n".join(preview_list), inline=False
-    )
-
-    if len(search_results) > 10:
-        embed.add_field(
-            name="➡️ More Results",
-            value="Use the menu below to see all results and react to a message.",
-            inline=False,
-        )
-
-    if len(search_results) == 25:
-        embed.add_field(
-            name="⚠️ Limited Results",
-            value="Only showing first 25 results. Try a more specific search.",
-            inline=False,
-        )
-
-    embed.set_footer(
-        text="Right-click a message and select 'Static Emoji Reaction' "
-        "to react with these emojis!"
-    )
-
-    await interaction.followup.send(embed=embed, ephemeral=True)
-
-
-@app_commands.command(name="force_sync", description="Force sync commands (debug)")
-async def force_sync(interaction: discord.Interaction):
-    """Force sync commands for debugging."""
-    if not interaction.user.guild_permissions.administrator:
-        return await interaction.response.send_message(
-            "❌ Only administrators can use this command.", ephemeral=True
-        )
-    
-    await interaction.response.defer(thinking=True, ephemeral=True)
-    
-    try:
-        synced = await bot.tree.sync(guild=interaction.guild)
-        await interaction.followup.send(
-            f"✅ Synced {len(synced)} commands to this guild.\n"
-            f"Commands: {', '.join(cmd.name for cmd in synced)}",
-            ephemeral=True
-        )
-    except Exception as e:
-        await interaction.followup.send(f"❌ Failed to sync: {e}", ephemeral=True)
-
-
 # Register all commands with the bot
 print("🔧 Registering commands...")
 bot.tree.add_command(generate_emoji_reaction)
 print("  ✅ Added: Generate Emoji Reaction (context menu)")
 bot.tree.add_command(static_emoji_reaction)
 print("  ✅ Added: Static Emoji Reaction (context menu)")
-bot.tree.add_command(generate_emoji)
-print("  ✅ Added: /generate_emoji (slash command)")
-bot.tree.add_command(browse_static_emojis)
-print("  ✅ Added: /browse_static_emojis (slash command)")
-bot.tree.add_command(force_sync)
-print("  ✅ Added: /force_sync (slash command)")
 print(f"🔧 Total commands registered: {len(bot.tree.get_commands())}")
 
 
