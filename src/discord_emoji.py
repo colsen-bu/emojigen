@@ -225,53 +225,20 @@ class EmojiSelectionView(discord.ui.View):
     async def use_static_emoji(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        """Show the static emoji browser."""
+        """Show the static emoji search modal."""
         try:
             # Check if interaction has already been responded to
             if interaction.response.is_done():
                 print("⚠️ Static emoji button interaction already responded to")
                 return
 
-            await interaction.response.defer(thinking=True, ephemeral=True)
-
-            # Get all static emojis and create view
-            all_emojis = get_static_emoji_files()
-
-            if not all_emojis:
-                return await interaction.followup.send(
-                    "❌ No static emojis found in the static folder.",
-                    ephemeral=True,
-                )
-
-            view = StaticEmojiView(self.target_message, all_emojis, "", 0)
-            embed = view._create_embed()
-
-            if len(all_emojis) > 25:
-                embed.add_field(
-                    name="📄 Navigation",
-                    value="Use the Previous/Next buttons to browse, or Search for specific emojis.",
-                    inline=False,
-                )
-
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-
+            await interaction.response.send_modal(
+                StaticEmojiSearchModal(target_message=self.target_message)
+            )
         except discord.NotFound:
             print("⚠️ Static emoji button interaction failed due to unknown interaction")
         except Exception as e:
             print(f"❌ Error in static emoji button: {e}")
-            try:
-                if not interaction.response.is_done():
-                    await interaction.response.send_message(
-                        "❌ An error occurred while loading static emojis. Please try again.",
-                        ephemeral=True,
-                    )
-                else:
-                    await interaction.followup.send(
-                        "❌ An error occurred while loading static emojis. Please try again.",
-                        ephemeral=True,
-                    )
-            except Exception:
-                pass
 
 
 class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
@@ -471,7 +438,7 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 def get_static_emoji_files():
     """Get list of static emoji files from the static folder."""
     global STATIC_FOLDER  # Declare global at the beginning
-    
+
     print(f"🔍 Searching for static files in: {STATIC_FOLDER}")
     print(f"🔍 Current working directory: {os.getcwd()}")
     print(f"🔍 Directory contents: {os.listdir('.')}")
@@ -514,7 +481,7 @@ def search_static_emojis(query):
     """Search static emoji files by query string."""
     all_files = get_static_emoji_files()
     if not query.strip():
-        return all_files  # Return all if no query
+        return all_files[:25]  # Return first 25 if no query
 
     query_lower = query.lower()
 
@@ -524,118 +491,24 @@ def search_static_emojis(query):
         if query_lower in filename.lower():
             matches.append(filename)
 
-    return matches  # Return all matches, pagination will handle display limits
+    return matches[:25]  # Limit to 25 results for Discord select menu
 
 
 class StaticEmojiView(discord.ui.View):
     """View for selecting static emoji to react with."""
 
-    def __init__(
-        self,
-        target_message: discord.Message,
-        search_results: list,
-        query: str = "",
-        page: int = 0,
-    ):
+    def __init__(self, target_message: discord.Message, search_results: list, query: str = ""):
         """Initialize the static emoji view with search results."""
         super().__init__(timeout=300)  # 5 minute timeout
         self.target_message = target_message
         self.search_results = search_results
         self.query = query
-        self.page = page
-        self.items_per_page = 25  # Discord limit for select options
-
-        # Calculate pagination
-        self.total_pages = (
-            (len(search_results) - 1) // self.items_per_page + 1
-            if search_results
-            else 0
-        )
-
-        # Get current page items
-        start_idx = page * self.items_per_page
-        end_idx = min(start_idx + self.items_per_page, len(search_results))
-        current_page_items = search_results[start_idx:end_idx]
 
         # Add select menu if we have results
-        if current_page_items:
-            self.add_item(StaticEmojiSelect(current_page_items, target_message))
+        if search_results:
+            self.add_item(StaticEmojiSelect(search_results, target_message))
 
-    @discord.ui.button(label="⬅️ Previous", style=discord.ButtonStyle.secondary, row=1)
-    async def previous_page(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        """Go to previous page."""
-        try:
-            if interaction.response.is_done():
-                print("⚠️ Previous page button interaction already responded to")
-                return
-
-            if self.page > 0:
-                await interaction.response.defer()
-                new_view = StaticEmojiView(
-                    self.target_message, self.search_results, self.query, self.page - 1
-                )
-                embed = self._create_embed()
-                await interaction.edit_original_response(embed=embed, view=new_view)
-            else:
-                await interaction.response.send_message(
-                    "❌ Already on first page!", ephemeral=True
-                )
-        except discord.NotFound:
-            print(
-                "⚠️ Previous page button interaction failed due to unknown interaction"
-            )
-        except Exception as e:
-            print(f"❌ Error in previous page button: {e}")
-
-    @discord.ui.button(label="➡️ Next", style=discord.ButtonStyle.secondary, row=1)
-    async def next_page(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        """Go to next page."""
-        try:
-            if interaction.response.is_done():
-                print("⚠️ Next page button interaction already responded to")
-                return
-
-            if self.page < self.total_pages - 1:
-                await interaction.response.defer()
-                new_view = StaticEmojiView(
-                    self.target_message, self.search_results, self.query, self.page + 1
-                )
-                embed = self._create_embed()
-                await interaction.edit_original_response(embed=embed, view=new_view)
-            else:
-                await interaction.response.send_message(
-                    "❌ Already on last page!", ephemeral=True
-                )
-        except discord.NotFound:
-            print("⚠️ Next page button interaction failed due to unknown interaction")
-        except Exception as e:
-            print(f"❌ Error in next page button: {e}")
-
-    @discord.ui.button(label="� Browse All", style=discord.ButtonStyle.primary, row=1)
-    async def browse_all(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        """Browse all static emojis."""
-        try:
-            if interaction.response.is_done():
-                print("⚠️ Browse all button interaction already responded to")
-                return
-
-            await interaction.response.defer()
-            all_emojis = get_static_emoji_files()
-            new_view = StaticEmojiView(self.target_message, all_emojis, "", 0)
-            embed = new_view._create_embed()
-            await interaction.edit_original_response(embed=embed, view=new_view)
-        except discord.NotFound:
-            print("⚠️ Browse all button interaction failed due to unknown interaction")
-        except Exception as e:
-            print(f"❌ Error in browse all button: {e}")
-
-    @discord.ui.button(label="🔍 Search", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label="🔍 Search Again", style=discord.ButtonStyle.secondary)
     async def search_again(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
@@ -660,8 +533,8 @@ class StaticEmojiView(discord.ui.View):
             title = f"🖼️ Static Emoji Search Results: '{self.query}'"
             description = f"Found {len(self.search_results)} emojis"
         else:
-            title = "🖼️ Browse All Static Emojis"
-            description = f"Showing all {len(self.search_results)} emojis"
+            title = "🖼️ Static Emojis"
+            description = f"Showing {len(self.search_results)} emojis"
 
         embed = discord.Embed(
             title=title,
@@ -669,10 +542,10 @@ class StaticEmojiView(discord.ui.View):
             color=0x5865F2,
         )
 
-        if self.total_pages > 1:
+        if len(self.search_results) > 25:
             embed.add_field(
-                name="📄 Page Navigation",
-                value=f"Page {self.page + 1} of {self.total_pages}",
+                name="⚠️ Limited Results",
+                value="Only showing first 25 results. Try a more specific search.",
                 inline=False,
             )
 
@@ -690,24 +563,59 @@ class StaticEmojiSelect(discord.ui.Select):
         options = []
         for filename in emoji_files[:25]:  # Discord limit of 25 options
             # Extract a clean name from filename for display
-            display_name = (
+            clean_name = (
                 filename.replace("_", " ")
                 .replace(".png", "")
                 .replace(".jpg", "")
                 .replace(".jpeg", "")
                 .replace(".gif", "")
             )
-            if len(display_name) > 100:
-                display_name = display_name[:97] + "..."
+            
+            # Create a preview-style label with emoji
+            if "cat" in filename.lower():
+                emoji_preview = "🐱"
+            elif "dog" in filename.lower():
+                emoji_preview = "🐶"
+            elif "smile" in filename.lower() or "happy" in filename.lower():
+                emoji_preview = "😊"
+            elif "sad" in filename.lower():
+                emoji_preview = "😢"
+            elif "heart" in filename.lower():
+                emoji_preview = "❤️"
+            elif "star" in filename.lower():
+                emoji_preview = "⭐"
+            elif "fire" in filename.lower():
+                emoji_preview = "🔥"
+            elif "logo" in filename.lower() or "brand" in filename.lower():
+                emoji_preview = "🏷️"
+            elif "circle" in filename.lower():
+                emoji_preview = "⚪"
+            elif "arrow" in filename.lower():
+                emoji_preview = "➡️"
+            elif "check" in filename.lower() or "tick" in filename.lower():
+                emoji_preview = "✅"
+            elif "cross" in filename.lower() or "x" in filename.lower():
+                emoji_preview = "❌"
+            elif "warning" in filename.lower():
+                emoji_preview = "⚠️"
+            elif "info" in filename.lower():
+                emoji_preview = "ℹ️"
+            else:
+                emoji_preview = "🖼️"
+            
+            # Create display label with emoji preview
+            display_label = f"{emoji_preview} {clean_name}"
+            if len(display_label) > 100:
+                display_label = display_label[:97] + "..."
 
             options.append(
                 discord.SelectOption(
-                    label=display_name[:100],  # Discord label limit
+                    label=display_label[:100],  # Discord label limit
                     value=filename,
                     description=(
-                        filename[:100]
+                        f"📁 {filename[:100]}"
                         if len(filename) <= 100
-                        else filename[:97] + "..."
+                        else f"📁 {filename[:97]}..."
                     ),
                 )
             )
@@ -887,8 +795,8 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
             if query:
                 search_results = search_static_emojis(query)
             else:
-                # If no query, browse all emojis
-                search_results = get_static_emoji_files()
+                # If no query, show first 25 emojis
+                search_results = get_static_emoji_files()[:25]
 
             if not search_results:
                 return await interaction.followup.send(
@@ -898,15 +806,8 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
                 )
 
             # Create view with search results
-            view = StaticEmojiView(self.target_message, search_results, query, 0)
+            view = StaticEmojiView(self.target_message, search_results, query)
             embed = view._create_embed()
-
-            if len(search_results) > 25:
-                embed.add_field(
-                    name="📄 Navigation",
-                    value="Use the Previous/Next buttons to browse through pages.",
-                    inline=False,
-                )
 
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
