@@ -18,7 +18,9 @@ RESPONSE_CHANNEL = os.environ.get("RESPONSE_CHANNEL")  # Optional response chann
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Get the path to the static folder
-STATIC_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+STATIC_FOLDER = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "static")
+)
 
 intents = discord.Intents.default()
 intents.messages = True
