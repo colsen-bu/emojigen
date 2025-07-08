@@ -18,9 +18,7 @@ RESPONSE_CHANNEL = os.environ.get("RESPONSE_CHANNEL")  # Optional response chann
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Get the path to the static folder
-STATIC_FOLDER = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "static")
-)
+STATIC_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -370,7 +368,9 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
 def get_static_emoji_files():
     """Get list of static emoji files from the static folder."""
+    print(f"🔍 Searching for static files in: {STATIC_FOLDER}")
     if not os.path.exists(STATIC_FOLDER):
+        print("❌ Static folder does not exist.")
         return []
 
     # Support common image formats
@@ -378,6 +378,8 @@ def get_static_emoji_files():
     files = []
     for pattern in patterns:
         files.extend(glob.glob(os.path.join(STATIC_FOLDER, pattern)))
+
+    print(f"✅ Found {len(files)} static files.")
 
     # Sort files and return just the filenames
     return sorted([os.path.basename(f) for f in files])
