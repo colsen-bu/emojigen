@@ -7,7 +7,6 @@ import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
-
 from openai import OpenAI
 
 # Configuration from environment
@@ -124,12 +123,45 @@ async def on_ready():
     pass  # Handled in the bot class
 
 
-@app_commands.context_menu(name="Generate Emoji Reaction")
-async def generate_emoji_reaction(
+@app_commands.context_menu(name="Add Emoji Reaction")
+async def add_emoji_reaction(
     interaction: discord.Interaction, message: discord.Message
 ):
-    """Context menu command to generate emoji reactions for messages."""
-    await interaction.response.send_modal(EmojiPromptModal(target_message=message))
+    """Context menu command to add emoji reactions - either generated or static."""
+    view = EmojiSelectionView(target_message=message)
+    embed = discord.Embed(
+        title="🎭 Add Emoji Reaction",
+        description="Choose how you want to add an emoji reaction:",
+        color=0x5865F2,
+    )
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class EmojiSelectionView(discord.ui.View):
+    """View for selecting between generating or using static emojis."""
+
+    def __init__(self, target_message: discord.Message):
+        """Initialize the emoji selection view for the target message."""
+        super().__init__(timeout=300)  # 5 minute timeout
+        self.target_message = target_message
+
+    @discord.ui.button(label="🎨 Generate New Emoji", style=discord.ButtonStyle.primary)
+    async def generate_emoji(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        """Show the generate emoji modal."""
+        await interaction.response.send_modal(
+            EmojiPromptModal(target_message=self.target_message)
+        )
+
+    @discord.ui.button(label="🖼️ Use Static Emoji", style=discord.ButtonStyle.secondary)
+    async def use_static_emoji(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        """Show the static emoji search modal."""
+        await interaction.response.send_modal(
+            StaticEmojiSearchModal(target_message=self.target_message)
+        )
 
 
 class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
@@ -565,22 +597,10 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
-@app_commands.context_menu(name="Static Emoji Reaction")
-async def static_emoji_reaction(
-    interaction: discord.Interaction, message: discord.Message
-):
-    """Context menu command to react with static emojis."""
-    await interaction.response.send_modal(
-        StaticEmojiSearchModal(target_message=message)
-    )
-
-
 # Register all commands with the bot
 print("🔧 Registering commands...")
-bot.tree.add_command(generate_emoji_reaction)
-print("  ✅ Added: Generate Emoji Reaction (context menu)")
-bot.tree.add_command(static_emoji_reaction)
-print("  ✅ Added: Static Emoji Reaction (context menu)")
+bot.tree.add_command(add_emoji_reaction)
+print("  ✅ Added: Add Emoji Reaction (context menu)")
 print(f"🔧 Total commands registered: {len(bot.tree.get_commands())}")
 
 
