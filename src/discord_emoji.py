@@ -131,7 +131,7 @@ async def on_ready():
     pass  # Handled in the bot class
 
 
-@app_commands.context_menu(name="Add Emoji Reaction")
+@app_commands.context_menu(name="Generate Emoji Reaction")
 async def add_emoji_reaction(
     interaction: discord.Interaction, message: discord.Message
 ):
@@ -172,7 +172,7 @@ class EmojiSelectionView(discord.ui.View):
         )
 
 
-class EmojiPromptModal(discord.ui.Modal, title="Add Emoji Reaction"):
+class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
     """Modal dialog for collecting emoji generation parameters."""
 
     prompt = discord.ui.TextInput(
@@ -623,7 +623,7 @@ async def sync_commands(ctx):
 # Register all commands with the bot
 print("🔧 Registering commands...")
 bot.tree.add_command(add_emoji_reaction)
-print("  ✅ Added: Add Emoji Reaction (context menu)")
+print("  ✅ Added: Generate Emoji Reaction (context menu)")
 print(f"🔧 Total commands registered: {len(bot.tree.get_commands())}")
 
 
