@@ -2,6 +2,7 @@
 
 import glob
 import os
+
 import aiohttp
 import discord
 from discord import app_commands
@@ -35,14 +36,19 @@ class EmojiBot(commands.Bot):
     async def setup_hook(self):
         """Set up the bot by adding commands and syncing to guilds."""
         # Commands will be added after bot initialization
-
+        print(f"🔧 Setup hook called. Registered commands: "
+              f"{len(self.tree.get_commands())}")
+        
         # If GUILD_ID is specified, sync to that guild immediately (for testing)
         if GUILD_ID and GUILD_ID.strip():
             try:
                 guild_id = int(GUILD_ID)
-                await self.tree.sync(guild=discord.Object(id=guild_id))
+                synced = await self.tree.sync(guild=discord.Object(id=guild_id))
                 self.synced_guilds.add(guild_id)
-                print(f"✅ Commands synced to test guild {guild_id}")
+                print(f"✅ Commands synced to test guild {guild_id}: "
+                      f"{len(synced)} commands")
+                for cmd in synced:
+                    print(f"  - {cmd.name} ({cmd.type.name})")
             except ValueError:
                 print("⚠️  Invalid GUILD_ID format")
 
@@ -60,14 +66,20 @@ class EmojiBot(commands.Bot):
         """Handle bot ready event and sync commands to all guilds."""
         print(f"✅ Logged in as {self.user}")
         print(f"📊 Connected to {len(self.guilds)} server(s)")
+        print(f"🔧 Total registered commands: {len(self.tree.get_commands())}")
+        
+        # List all registered commands for debugging
+        for cmd in self.tree.get_commands():
+            print(f"  - {cmd.name} ({cmd.type.name})")
 
         # Sync commands to all current guilds if not already synced
         for guild in self.guilds:
             if guild.id not in self.synced_guilds:
                 try:
-                    await self.tree.sync(guild=guild)
+                    synced = await self.tree.sync(guild=guild)
                     self.synced_guilds.add(guild.id)
-                    print(f"✅ Commands synced to existing guild: {guild.name}")
+                    print(f"✅ Commands synced to existing guild: {guild.name} "
+                          f"({len(synced)} commands)")
                 except discord.HTTPException as e:
                     print(f"❌ Failed to sync to {guild.name}: {e}")
 
@@ -762,11 +774,40 @@ async def browse_static_emojis(interaction: discord.Interaction, query: str = ""
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+@app_commands.command(name="force_sync", description="Force sync commands (debug)")
+async def force_sync(interaction: discord.Interaction):
+    """Force sync commands for debugging."""
+    if not interaction.user.guild_permissions.administrator:
+        return await interaction.response.send_message(
+            "❌ Only administrators can use this command.", ephemeral=True
+        )
+    
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    
+    try:
+        synced = await bot.tree.sync(guild=interaction.guild)
+        await interaction.followup.send(
+            f"✅ Synced {len(synced)} commands to this guild.\n"
+            f"Commands: {', '.join(cmd.name for cmd in synced)}",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.followup.send(f"❌ Failed to sync: {e}", ephemeral=True)
+
+
 # Register all commands with the bot
+print("🔧 Registering commands...")
 bot.tree.add_command(generate_emoji_reaction)
+print("  ✅ Added: Generate Emoji Reaction (context menu)")
 bot.tree.add_command(static_emoji_reaction)
+print("  ✅ Added: Static Emoji Reaction (context menu)")
 bot.tree.add_command(generate_emoji)
+print("  ✅ Added: /generate_emoji (slash command)")
 bot.tree.add_command(browse_static_emojis)
+print("  ✅ Added: /browse_static_emojis (slash command)")
+bot.tree.add_command(force_sync)
+print("  ✅ Added: /force_sync (slash command)")
+print(f"🔧 Total commands registered: {len(bot.tree.get_commands())}")
 
 
 if __name__ == "__main__":
