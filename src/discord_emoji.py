@@ -164,7 +164,7 @@ class EmojiSelectionView(discord.ui.View):
         )
 
 
-class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
+class EmojiPromptModal(discord.ui.Modal, title="Add Emoji Reaction"):
     """Modal dialog for collecting emoji generation parameters."""
 
     prompt = discord.ui.TextInput(
