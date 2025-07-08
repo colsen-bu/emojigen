@@ -5,7 +5,9 @@ A Discord bot that generates custom emojis using OpenAI's DALL-E API and adds th
 ## Features
 
 - 🎨 **AI-Generated Emojis**: Uses OpenAI DALL-E 3 to create custom emojis.
-- 🖱️ **Context Menu Integration**: Right-click any message to generate an emoji reaction.
+- 🖼️ **Static Emoji Library**: Browse and react with 500+ pre-made emoji images.
+- 🖱️ **Context Menu Integration**: Right-click any message to generate an emoji reaction or browse static emojis.
+- 🔍 **Smart Search**: Search through static emojis by keywords.
 - 🔄 **Automatic Cleanup**: Emojis are automatically deleted after use to save server space.
 - 🐳 **Docker Ready**: Fully containerized for easy deployment.
 - 🔒 **Secure**: Runs as non-root user in container.
@@ -25,6 +27,9 @@ A Discord bot that generates custom emojis using OpenAI's DALL-E API and adds th
     - [Manual Setup](#manual-setup)
     - [IDE Integration](#ide-integration)
   - [Usage](#usage)
+    - [AI-Generated Emojis](#ai-generated-emojis)
+    - [Static Emoji Library](#static-emoji-library)
+    - [Available Commands](#available-commands)
   - [Development Commands (Makefile)](#development-commands-makefile)
   - [CI/CD Pipeline (Woodpecker CI)](#cicd-pipeline-woodpecker-ci)
     - [Pipeline Overview](#pipeline-overview)
@@ -119,13 +124,32 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 ## Usage
 
-1.  **Invite the bot** to your Discord server with the required [permissions](#bot-permissions).
-2.  **Right-click any message** in your server.
-3.  Select **"Generate Emoji Reaction"** from the context menu.
-4.  **Fill in the modal**:
-    - **Emoji Name**: A short name for the emoji (e.g., "happycat").
-    - **Prompt**: A description of the emoji you want to generate.
-5.  **Submit** and wait for the bot to generate and react with your custom emoji!
+### AI-Generated Emojis
+
+1. **Invite the bot** to your Discord server with the required [permissions](#bot-permissions).
+2. **Right-click any message** in your server.
+3. Select **"Generate Emoji Reaction"** from the context menu.
+4. **Fill in the modal**:
+   - **Prompt**: A description of the emoji you want to generate (e.g., "a cute smiling orange cat").
+5. **Submit** and wait for the bot to generate and react with your custom emoji!
+
+### Static Emoji Library
+
+1. **Browse the library** with `/browse_static_emojis [search_query]`
+   - Use keywords like "cat", "smile", "logo", "pixel" to find specific emojis
+   - Leave empty to see all available emojis
+2. **React with static emojis**:
+   - Right-click any message
+   - Select **"Static Emoji Reaction"** from the context menu
+   - Search for the emoji you want
+   - Select from the dropdown menu to react
+
+### Available Commands
+
+- `/generate_emoji [prompt]` - Generate a custom emoji using AI
+- `/browse_static_emojis [query]` - Browse and search the static emoji library
+- **Context Menu**: "Generate Emoji Reaction" - Generate AI emoji for a message
+- **Context Menu**: "Static Emoji Reaction" - React with static emojis from library
 
 ## Development Commands (Makefile)
 

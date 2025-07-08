@@ -1,5 +1,6 @@
 """Discord Emoji Bot - Generate custom emojis using OpenAI's DALL-E API."""
 
+import glob
 import os
 
 import aiohttp
@@ -15,6 +16,9 @@ GUILD_ID = os.environ.get("GUILD_ID")  # Optional for testing
 RESPONSE_CHANNEL = os.environ.get("RESPONSE_CHANNEL")  # Optional response channel
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Get the path to the static folder
+STATIC_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -32,6 +36,8 @@ class EmojiBot(commands.Bot):
     async def setup_hook(self):
         """Set up the bot by adding commands and syncing to guilds."""
         self.tree.add_command(generate_emoji_reaction)
+        self.tree.add_command(static_emoji_reaction)
+        self.tree.add_command(browse_static_emojis)
 
         # If GUILD_ID is specified, sync to that guild immediately (for testing)
         if GUILD_ID and GUILD_ID.strip():
@@ -445,10 +451,324 @@ async def generate_emoji(interaction: discord.Interaction, prompt: str):
         pass
 
 
-# Add the slash command to the bot
+def get_static_emoji_files():
+    """Get list of static emoji files from the static folder."""
+    if not os.path.exists(STATIC_FOLDER):
+        return []
+
+    # Support common image formats
+    patterns = ["*.png", "*.jpg", "*.jpeg", "*.gif"]
+    files = []
+    for pattern in patterns:
+        files.extend(glob.glob(os.path.join(STATIC_FOLDER, pattern)))
+
+    # Sort files and return just the filenames
+    return sorted([os.path.basename(f) for f in files])
+
+
+def search_static_emojis(query):
+    """Search static emoji files by query string."""
+    all_files = get_static_emoji_files()
+    if not query.strip():
+        return all_files[:25]  # Return first 25 if no query
+
+    query_lower = query.lower()
+
+    # Search for files that contain the query in their name
+    matches = []
+    for filename in all_files:
+        if query_lower in filename.lower():
+            matches.append(filename)
+
+    return matches[:25]  # Limit to 25 results for Discord select menu
+
+
+class StaticEmojiView(discord.ui.View):
+    """View for selecting static emoji to react with."""
+
+    def __init__(
+        self, target_message: discord.Message, search_results: list, query: str = ""
+    ):
+        """Initialize the static emoji view with search results."""
+        super().__init__(timeout=300)  # 5 minute timeout
+        self.target_message = target_message
+        self.search_results = search_results
+        self.query = query
+
+        # Add select menu if we have results
+        if search_results:
+            self.add_item(StaticEmojiSelect(search_results, target_message))
+
+    @discord.ui.button(label="🔍 Search Again", style=discord.ButtonStyle.secondary)
+    async def search_again(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        """Show the search modal again."""
+        await interaction.response.send_modal(
+            StaticEmojiSearchModal(self.target_message)
+        )
+
+
+class StaticEmojiSelect(discord.ui.Select):
+    """Select menu for choosing a static emoji."""
+
+    def __init__(self, emoji_files: list, target_message: discord.Message):
+        """Initialize the static emoji select menu with available emoji files."""
+        self.target_message = target_message
+
+        # Create options from emoji files
+        options = []
+        for filename in emoji_files[:25]:  # Discord limit of 25 options
+            # Extract a clean name from filename for display
+            display_name = (
+                filename.replace("_", " ")
+                .replace(".png", "")
+                .replace(".jpg", "")
+                .replace(".jpeg", "")
+                .replace(".gif", "")
+            )
+            if len(display_name) > 100:
+                display_name = display_name[:97] + "..."
+
+            options.append(
+                discord.SelectOption(
+                    label=display_name[:100],  # Discord label limit
+                    value=filename,
+                    description=(
+                        filename[:100]
+                        if len(filename) <= 100
+                        else filename[:97] + "..."
+                    ),
+                )
+            )
+
+        super().__init__(
+            placeholder="Choose a static emoji to react with...",
+            options=options,
+            min_values=1,
+            max_values=1,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        """Handle emoji selection."""
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        selected_file = self.values[0]
+        file_path = os.path.join(STATIC_FOLDER, selected_file)
+
+        if not os.path.exists(file_path):
+            return await interaction.followup.send(
+                "❌ Selected emoji file not found.", ephemeral=True
+            )
+
+        # Find appropriate response channel
+        response_channel = await get_response_channel(
+            interaction.guild, interaction.channel
+        )
+
+        if not response_channel:
+            return await interaction.followup.send(
+                "❌ I don't have permission to send messages in any channel.",
+                ephemeral=True,
+            )
+
+        # Create emoji name from filename
+        base_name = os.path.splitext(selected_file)[0]
+        sanitized_name = EmojiPromptModal.sanitize_emoji_name(
+            base_name, interaction.guild
+        )
+
+        # Read the image file
+        try:
+            with open(file_path, "rb") as f:
+                image_data = f.read()
+        except Exception as e:
+            return await interaction.followup.send(
+                f"❌ Failed to read emoji file: {e}", ephemeral=True
+            )
+
+        # Resize image if it's not a GIF and is larger than 128x128
+        if not selected_file.lower().endswith(".gif"):
+            try:
+                import io
+
+                from PIL import Image
+
+                image = Image.open(io.BytesIO(image_data))
+                if image.size[0] > 128 or image.size[1] > 128:
+                    image = image.resize((128, 128), Image.Resampling.LANCZOS)
+                    output = io.BytesIO()
+                    image.save(output, format="PNG")
+                    image_data = output.getvalue()
+            except Exception as e:
+                print(f"⚠️ Image resize failed, using original: {e}")
+
+        # Create custom emoji on the server
+        try:
+            emoji = await interaction.guild.create_custom_emoji(
+                name=sanitized_name, image=image_data
+            )
+        except discord.Forbidden:
+            return await interaction.followup.send(
+                "❌ I don't have permission to add emojis.", ephemeral=True
+            )
+        except discord.HTTPException as e:
+            return await interaction.followup.send(
+                f"❌ Failed to create emoji '{sanitized_name}': {e}", ephemeral=True
+            )
+
+        # Add emoji reaction to the target message
+        try:
+            await self.target_message.add_reaction(emoji)
+
+            # Send success message to the designated response channel
+            success_message = f"✅ **Static Emoji Added: `{selected_file}`**"
+            await response_channel.send(success_message)
+
+            # Send ephemeral confirmation
+            await interaction.followup.send(
+                "✅ Static emoji added as reaction!", ephemeral=True
+            )
+
+        except discord.HTTPException as e:
+            await interaction.followup.send(f"❌ Failed to react: {e}", ephemeral=True)
+
+        # Clean up emoji to save server space
+        try:
+            await emoji.delete()
+        except discord.HTTPException:
+            pass
+
+
+class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
+    """Modal dialog for searching static emojis."""
+
+    search_query = discord.ui.TextInput(
+        label="Search for Static Emoji",
+        style=discord.TextStyle.short,
+        placeholder="Enter keywords to search for (e.g., cat, smile, logo)",
+        required=False,
+        max_length=100,
+    )
+
+    def __init__(self, target_message: discord.Message):
+        """Initialize the static emoji search modal for the target message."""
+        super().__init__()
+        self.target_message = target_message
+
+    async def on_submit(self, interaction: discord.Interaction):
+        """Handle search submission."""
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        query = self.search_query.value.strip()
+        search_results = search_static_emojis(query)
+
+        if not search_results:
+            return await interaction.followup.send(
+                f"❌ No static emojis found for query: `{query}`\n"
+                f"Available emojis: {len(get_static_emoji_files())} total",
+                ephemeral=True,
+            )
+
+        # Create view with search results
+        view = StaticEmojiView(self.target_message, search_results, query)
+
+        embed = discord.Embed(
+            title="🖼️ Static Emoji Search Results",
+            description=f"Found {len(search_results)} emojis"
+            + (f" for `{query}`" if query else ""),
+            color=0x5865F2,
+        )
+
+        if len(search_results) == 25:
+            embed.add_field(
+                name="⚠️ Limited Results",
+                value="Only showing first 25 results. Try a more specific search.",
+                inline=False,
+            )
+
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+
+@app_commands.context_menu(name="Static Emoji Reaction")
+async def static_emoji_reaction(
+    interaction: discord.Interaction, message: discord.Message
+):
+    """Context menu command to react with static emojis."""
+    await interaction.response.send_modal(
+        StaticEmojiSearchModal(target_message=message)
+    )
+
+
+@app_commands.command(
+    name="browse_static_emojis", description="Browse and search static emojis"
+)
+@app_commands.describe(query="Search query for static emojis (optional)")
+async def browse_static_emojis(interaction: discord.Interaction, query: str = ""):
+    """Slash command to browse static emojis."""
+    await interaction.response.defer(thinking=True, ephemeral=True)
+
+    search_results = search_static_emojis(query)
+
+    if not search_results:
+        total_count = len(get_static_emoji_files())
+        return await interaction.followup.send(
+            f"❌ No static emojis found for query: `{query}`\n"
+            f"Available emojis: {total_count} total\n"
+            f"Try searching for: cat, smile, logo, pixel, etc.",
+            ephemeral=True,
+        )
+
+    # Create an embed showing the search results
+    embed = discord.Embed(
+        title="🖼️ Static Emoji Browser",
+        description=f"Found {len(search_results)} emojis"
+        + (f" for `{query}`" if query else ""),
+        color=0x5865F2,
+    )
+
+    # Show first few results in embed
+    preview_list = []
+    for i, filename in enumerate(search_results[:10]):
+        clean_name = (
+            filename.replace("_", " ")
+            .replace(".png", "")
+            .replace(".jpg", "")
+            .replace(".jpeg", "")
+            .replace(".gif", "")
+        )
+        preview_list.append(f"{i+1}. {clean_name}")
+
+    embed.add_field(
+        name="📋 Preview (first 10)", value="\n".join(preview_list), inline=False
+    )
+
+    if len(search_results) > 10:
+        embed.add_field(
+            name="➡️ More Results",
+            value="Use the menu below to see all results and react to a message.",
+            inline=False,
+        )
+
+    if len(search_results) == 25:
+        embed.add_field(
+            name="⚠️ Limited Results",
+            value="Only showing first 25 results. Try a more specific search.",
+            inline=False,
+        )
+
+    embed.set_footer(
+        text="Right-click a message and select 'Static Emoji Reaction' to react with these emojis!"
+    )
+
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+# Add the slash commands to the bot
 def setup(bot):
-    """Add the generate_emoji slash command to the bot."""
+    """Add slash commands to the bot."""
     bot.tree.add_command(generate_emoji)
+    bot.tree.add_command(browse_static_emojis)
 
 
 if __name__ == "__main__":
