@@ -136,13 +136,60 @@ async def add_emoji_reaction(
     interaction: discord.Interaction, message: discord.Message
 ):
     """Context menu command to add emoji reactions - either generated or static."""
-    view = EmojiSelectionView(target_message=message)
-    embed = discord.Embed(
-        title="🎭 Add Emoji Reaction",
-        description="Choose how you want to add an emoji reaction:",
-        color=0x5865F2,
-    )
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    try:
+        # Check if interaction has already been responded to
+        if interaction.response.is_done():
+            print("⚠️ Context menu interaction already responded to")
+            return
+
+        # Try to defer the interaction, but handle timeouts gracefully
+        try:
+            await interaction.response.defer(ephemeral=True)
+
+            view = EmojiSelectionView(target_message=message)
+            embed = discord.Embed(
+                title="🎭 Add Emoji Reaction",
+                description="Choose how you want to add an emoji reaction:",
+                color=0x5865F2,
+            )
+            # Use followup.send() because the interaction has been deferred
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+        except discord.NotFound:
+            # If defer fails due to unknown interaction, try direct response
+            print("⚠️ Context menu defer failed, attempting direct response")
+
+            view = EmojiSelectionView(target_message=message)
+            embed = discord.Embed(
+                title="🎭 Add Emoji Reaction",
+                description="Choose how you want to add an emoji reaction:",
+                color=0x5865F2,
+            )
+
+            try:
+                await interaction.response.send_message(
+                    embed=embed, view=view, ephemeral=True
+                )
+            except (discord.NotFound, discord.HTTPException) as e:
+                print(f"❌ Failed to respond to context menu interaction: {e}")
+                return
+
+    except Exception as e:
+        print(f"❌ Unexpected error in add_emoji_reaction: {e}")
+        # Try to send an error message if possible
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ An error occurred while processing your request. Please try again.",
+                    ephemeral=True,
+                )
+            else:
+                await interaction.followup.send(
+                    "❌ An error occurred while processing your request. Please try again.",
+                    ephemeral=True,
+                )
+        except Exception:
+            pass  # If we can't even send an error message, just log it
 
 
 class EmojiSelectionView(discord.ui.View):
@@ -158,18 +205,73 @@ class EmojiSelectionView(discord.ui.View):
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         """Show the generate emoji modal."""
-        await interaction.response.send_modal(
-            EmojiPromptModal(target_message=self.target_message)
-        )
+        try:
+            # Check if interaction has already been responded to
+            if interaction.response.is_done():
+                print("⚠️ Generate emoji button interaction already responded to")
+                return
+
+            await interaction.response.send_modal(
+                EmojiPromptModal(target_message=self.target_message)
+            )
+        except discord.NotFound:
+            print(
+                "⚠️ Generate emoji button interaction failed due to unknown interaction"
+            )
+        except Exception as e:
+            print(f"❌ Error in generate emoji button: {e}")
 
     @discord.ui.button(label="🖼️ Use Static Emoji", style=discord.ButtonStyle.secondary)
     async def use_static_emoji(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        """Show the static emoji search modal."""
-        await interaction.response.send_modal(
-            StaticEmojiSearchModal(target_message=self.target_message)
-        )
+        """Show the static emoji browser."""
+        try:
+            # Check if interaction has already been responded to
+            if interaction.response.is_done():
+                print("⚠️ Static emoji button interaction already responded to")
+                return
+
+            await interaction.response.defer(thinking=True, ephemeral=True)
+
+            # Get all static emojis and create view
+            all_emojis = get_static_emoji_files()
+
+            if not all_emojis:
+                return await interaction.followup.send(
+                    "❌ No static emojis found in the static folder.",
+                    ephemeral=True,
+                )
+
+            view = StaticEmojiView(self.target_message, all_emojis, "", 0)
+            embed = view._create_embed()
+
+            if len(all_emojis) > 25:
+                embed.add_field(
+                    name="📄 Navigation",
+                    value="Use the Previous/Next buttons to browse, or Search for specific emojis.",
+                    inline=False,
+                )
+
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+        except discord.NotFound:
+            print("⚠️ Static emoji button interaction failed due to unknown interaction")
+        except Exception as e:
+            print(f"❌ Error in static emoji button: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ An error occurred while loading static emojis. Please try again.",
+                        ephemeral=True,
+                    )
+                else:
+                    await interaction.followup.send(
+                        "❌ An error occurred while loading static emojis. Please try again.",
+                        ephemeral=True,
+                    )
+            except Exception:
+                pass
 
 
 class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
@@ -389,7 +491,7 @@ def search_static_emojis(query):
     """Search static emoji files by query string."""
     all_files = get_static_emoji_files()
     if not query.strip():
-        return all_files[:25]  # Return first 25 if no query
+        return all_files  # Return all if no query
 
     query_lower = query.lower()
 
@@ -399,33 +501,159 @@ def search_static_emojis(query):
         if query_lower in filename.lower():
             matches.append(filename)
 
-    return matches[:25]  # Limit to 25 results for Discord select menu
+    return matches  # Return all matches, pagination will handle display limits
 
 
 class StaticEmojiView(discord.ui.View):
     """View for selecting static emoji to react with."""
 
     def __init__(
-        self, target_message: discord.Message, search_results: list, query: str = ""
+        self,
+        target_message: discord.Message,
+        search_results: list,
+        query: str = "",
+        page: int = 0,
     ):
         """Initialize the static emoji view with search results."""
         super().__init__(timeout=300)  # 5 minute timeout
         self.target_message = target_message
         self.search_results = search_results
         self.query = query
+        self.page = page
+        self.items_per_page = 25  # Discord limit for select options
+
+        # Calculate pagination
+        self.total_pages = (
+            (len(search_results) - 1) // self.items_per_page + 1
+            if search_results
+            else 0
+        )
+
+        # Get current page items
+        start_idx = page * self.items_per_page
+        end_idx = min(start_idx + self.items_per_page, len(search_results))
+        current_page_items = search_results[start_idx:end_idx]
 
         # Add select menu if we have results
-        if search_results:
-            self.add_item(StaticEmojiSelect(search_results, target_message))
+        if current_page_items:
+            self.add_item(StaticEmojiSelect(current_page_items, target_message))
 
-    @discord.ui.button(label="🔍 Search Again", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="⬅️ Previous", style=discord.ButtonStyle.secondary, row=1)
+    async def previous_page(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        """Go to previous page."""
+        try:
+            if interaction.response.is_done():
+                print("⚠️ Previous page button interaction already responded to")
+                return
+
+            if self.page > 0:
+                await interaction.response.defer()
+                new_view = StaticEmojiView(
+                    self.target_message, self.search_results, self.query, self.page - 1
+                )
+                embed = self._create_embed()
+                await interaction.edit_original_response(embed=embed, view=new_view)
+            else:
+                await interaction.response.send_message(
+                    "❌ Already on first page!", ephemeral=True
+                )
+        except discord.NotFound:
+            print(
+                "⚠️ Previous page button interaction failed due to unknown interaction"
+            )
+        except Exception as e:
+            print(f"❌ Error in previous page button: {e}")
+
+    @discord.ui.button(label="➡️ Next", style=discord.ButtonStyle.secondary, row=1)
+    async def next_page(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        """Go to next page."""
+        try:
+            if interaction.response.is_done():
+                print("⚠️ Next page button interaction already responded to")
+                return
+
+            if self.page < self.total_pages - 1:
+                await interaction.response.defer()
+                new_view = StaticEmojiView(
+                    self.target_message, self.search_results, self.query, self.page + 1
+                )
+                embed = self._create_embed()
+                await interaction.edit_original_response(embed=embed, view=new_view)
+            else:
+                await interaction.response.send_message(
+                    "❌ Already on last page!", ephemeral=True
+                )
+        except discord.NotFound:
+            print("⚠️ Next page button interaction failed due to unknown interaction")
+        except Exception as e:
+            print(f"❌ Error in next page button: {e}")
+
+    @discord.ui.button(label="� Browse All", style=discord.ButtonStyle.primary, row=1)
+    async def browse_all(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        """Browse all static emojis."""
+        try:
+            if interaction.response.is_done():
+                print("⚠️ Browse all button interaction already responded to")
+                return
+
+            await interaction.response.defer()
+            all_emojis = get_static_emoji_files()
+            new_view = StaticEmojiView(self.target_message, all_emojis, "", 0)
+            embed = new_view._create_embed()
+            await interaction.edit_original_response(embed=embed, view=new_view)
+        except discord.NotFound:
+            print("⚠️ Browse all button interaction failed due to unknown interaction")
+        except Exception as e:
+            print(f"❌ Error in browse all button: {e}")
+
+    @discord.ui.button(label="🔍 Search", style=discord.ButtonStyle.secondary, row=1)
     async def search_again(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         """Show the search modal again."""
-        await interaction.response.send_modal(
-            StaticEmojiSearchModal(self.target_message)
+        try:
+            # Check if interaction has already been responded to
+            if interaction.response.is_done():
+                print("⚠️ Search again button interaction already responded to")
+                return
+
+            await interaction.response.send_modal(
+                StaticEmojiSearchModal(self.target_message)
+            )
+        except discord.NotFound:
+            print("⚠️ Search again button interaction failed due to unknown interaction")
+        except Exception as e:
+            print(f"❌ Error in search again button: {e}")
+
+    def _create_embed(self):
+        """Create embed for current page."""
+        if self.query:
+            title = f"🖼️ Static Emoji Search Results: '{self.query}'"
+            description = f"Found {len(self.search_results)} emojis"
+        else:
+            title = "🖼️ Browse All Static Emojis"
+            description = f"Showing all {len(self.search_results)} emojis"
+
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=0x5865F2,
         )
+
+        if self.total_pages > 1:
+            embed.add_field(
+                name="📄 Page Navigation",
+                value=f"Page {self.page + 1} of {self.total_pages}",
+                inline=False,
+            )
+
+        return embed
 
 
 class StaticEmojiSelect(discord.ui.Select):
@@ -470,93 +698,126 @@ class StaticEmojiSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         """Handle emoji selection."""
-        await interaction.response.defer(thinking=True, ephemeral=True)
-
-        selected_file = self.values[0]
-        file_path = os.path.join(STATIC_FOLDER, selected_file)
-
-        if not os.path.exists(file_path):
-            return await interaction.followup.send(
-                "❌ Selected emoji file not found.", ephemeral=True
-            )
-
-        # Find appropriate response channel
-        response_channel = await get_response_channel(
-            interaction.guild, interaction.channel
-        )
-
-        if not response_channel:
-            return await interaction.followup.send(
-                "❌ I don't have permission to send messages in any channel.",
-                ephemeral=True,
-            )
-
-        # Create emoji name from filename
-        base_name = os.path.splitext(selected_file)[0]
-        sanitized_name = EmojiPromptModal.sanitize_emoji_name(
-            base_name, interaction.guild
-        )
-
-        # Read the image file
         try:
-            with open(file_path, "rb") as f:
-                image_data = f.read()
-        except Exception as e:
-            return await interaction.followup.send(
-                f"❌ Failed to read emoji file: {e}", ephemeral=True
-            )
+            # Check if interaction has already been responded to
+            if interaction.response.is_done():
+                print("⚠️ Static emoji selection interaction already responded to")
+                return
 
-        # Resize image if it's not a GIF and is larger than 128x128
-        if not selected_file.lower().endswith(".gif"):
             try:
-                import io
-
-                from PIL import Image
-
-                image = Image.open(io.BytesIO(image_data))
-                if image.size[0] > 128 or image.size[1] > 128:
-                    image = image.resize((128, 128), Image.Resampling.LANCZOS)
-                    output = io.BytesIO()
-                    image.save(output, format="PNG")
-                    image_data = output.getvalue()
+                await interaction.response.defer(thinking=True, ephemeral=True)
+            except discord.NotFound:
+                print(
+                    "⚠️ Static emoji selection defer failed due to unknown interaction"
+                )
+                return
             except Exception as e:
-                print(f"⚠️ Image resize failed, using original: {e}")
+                print(f"❌ Static emoji selection defer failed: {e}")
+                return
 
-        # Create custom emoji on the server
-        try:
-            emoji = await interaction.guild.create_custom_emoji(
-                name=sanitized_name, image=image_data
-            )
-        except discord.Forbidden:
-            return await interaction.followup.send(
-                "❌ I don't have permission to add emojis.", ephemeral=True
-            )
-        except discord.HTTPException as e:
-            return await interaction.followup.send(
-                f"❌ Failed to create emoji '{sanitized_name}': {e}", ephemeral=True
-            )
+            selected_file = self.values[0]
+            file_path = os.path.join(STATIC_FOLDER, selected_file)
 
-        # Add emoji reaction to the target message
-        try:
-            await self.target_message.add_reaction(emoji)
+            if not os.path.exists(file_path):
+                return await interaction.followup.send(
+                    "❌ Selected emoji file not found.", ephemeral=True
+                )
 
-            # Send success message to the designated response channel
-            success_message = f"✅ **Static Emoji Added: `{selected_file}`**"
-            await response_channel.send(success_message)
-
-            # Send ephemeral confirmation
-            await interaction.followup.send(
-                "✅ Static emoji added as reaction!", ephemeral=True
+            # Find appropriate response channel
+            response_channel = await get_response_channel(
+                interaction.guild, interaction.channel
             )
 
-        except discord.HTTPException as e:
-            await interaction.followup.send(f"❌ Failed to react: {e}", ephemeral=True)
+            if not response_channel:
+                return await interaction.followup.send(
+                    "❌ I don't have permission to send messages in any channel.",
+                    ephemeral=True,
+                )
 
-        # Clean up emoji to save server space
-        try:
-            await emoji.delete()
-        except discord.HTTPException:
-            pass
+            # Create emoji name from filename
+            base_name = os.path.splitext(selected_file)[0]
+            sanitized_name = EmojiPromptModal.sanitize_emoji_name(
+                base_name, interaction.guild
+            )
+
+            # Read the image file
+            try:
+                with open(file_path, "rb") as f:
+                    image_data = f.read()
+            except Exception as e:
+                return await interaction.followup.send(
+                    f"❌ Failed to read emoji file: {e}", ephemeral=True
+                )
+
+            # Resize image if it's not a GIF and is larger than 128x128
+            if not selected_file.lower().endswith(".gif"):
+                try:
+                    import io
+
+                    from PIL import Image
+
+                    image = Image.open(io.BytesIO(image_data))
+                    if image.size[0] > 128 or image.size[1] > 128:
+                        image = image.resize((128, 128), Image.Resampling.LANCZOS)
+                        output = io.BytesIO()
+                        image.save(output, format="PNG")
+                        image_data = output.getvalue()
+                except Exception as e:
+                    print(f"⚠️ Image resize failed, using original: {e}")
+
+            # Create custom emoji on the server
+            try:
+                emoji = await interaction.guild.create_custom_emoji(
+                    name=sanitized_name, image=image_data
+                )
+            except discord.Forbidden:
+                return await interaction.followup.send(
+                    "❌ I don't have permission to add emojis.", ephemeral=True
+                )
+            except discord.HTTPException as e:
+                return await interaction.followup.send(
+                    f"❌ Failed to create emoji '{sanitized_name}': {e}", ephemeral=True
+                )
+
+            # Add emoji reaction to the target message
+            try:
+                await self.target_message.add_reaction(emoji)
+
+                # Send success message to the designated response channel
+                success_message = f"✅ **Static Emoji Added: `{selected_file}`**"
+                await response_channel.send(success_message)
+
+                # Send ephemeral confirmation
+                await interaction.followup.send(
+                    "✅ Static emoji added as reaction!", ephemeral=True
+                )
+
+            except discord.HTTPException as e:
+                await interaction.followup.send(
+                    f"❌ Failed to react: {e}", ephemeral=True
+                )
+
+            # Clean up emoji to save server space
+            try:
+                await emoji.delete()
+            except discord.HTTPException:
+                pass
+
+        except Exception as e:
+            print(f"❌ Unexpected error in static emoji selection: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ An error occurred while adding the static emoji. Please try again.",
+                        ephemeral=True,
+                    )
+                else:
+                    await interaction.followup.send(
+                        "❌ An error occurred while adding the static emoji. Please try again.",
+                        ephemeral=True,
+                    )
+            except Exception:
+                pass  # If we can't even send an error message, just log it
 
 
 class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
@@ -577,36 +838,66 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
 
     async def on_submit(self, interaction: discord.Interaction):
         """Handle search submission."""
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        try:
+            # Check if interaction has already been responded to
+            if interaction.response.is_done():
+                print("⚠️ Static emoji search modal interaction already responded to")
+                return
 
-        query = self.search_query.value.strip()
-        search_results = search_static_emojis(query)
+            try:
+                await interaction.response.defer(thinking=True, ephemeral=True)
+            except discord.NotFound:
+                print(
+                    "⚠️ Static emoji search modal defer failed due to unknown interaction"
+                )
+                return
+            except Exception as e:
+                print(f"❌ Static emoji search modal defer failed: {e}")
+                return
 
-        if not search_results:
-            return await interaction.followup.send(
-                f"❌ No static emojis found for query: `{query}`\n"
-                f"Available emojis: {len(get_static_emoji_files())} total",
-                ephemeral=True,
-            )
+            query = self.search_query.value.strip()
 
-        # Create view with search results
-        view = StaticEmojiView(self.target_message, search_results, query)
+            if query:
+                search_results = search_static_emojis(query)
+            else:
+                # If no query, browse all emojis
+                search_results = get_static_emoji_files()
 
-        embed = discord.Embed(
-            title="🖼️ Static Emoji Search Results",
-            description=f"Found {len(search_results)} emojis"
-            + (f" for `{query}`" if query else ""),
-            color=0x5865F2,
-        )
+            if not search_results:
+                return await interaction.followup.send(
+                    f"❌ No static emojis found for query: `{query}`\n"
+                    f"Available emojis: {len(get_static_emoji_files())} total",
+                    ephemeral=True,
+                )
 
-        if len(search_results) == 25:
-            embed.add_field(
-                name="⚠️ Limited Results",
-                value="Only showing first 25 results. Try a more specific search.",
-                inline=False,
-            )
+            # Create view with search results
+            view = StaticEmojiView(self.target_message, search_results, query, 0)
+            embed = view._create_embed()
 
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            if len(search_results) > 25:
+                embed.add_field(
+                    name="📄 Navigation",
+                    value="Use the Previous/Next buttons to browse through pages.",
+                    inline=False,
+                )
+
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+        except Exception as e:
+            print(f"❌ Unexpected error in static emoji search modal: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ An error occurred while searching for static emojis. Please try again.",
+                        ephemeral=True,
+                    )
+                else:
+                    await interaction.followup.send(
+                        "❌ An error occurred while searching for static emojis. Please try again.",
+                        ephemeral=True,
+                    )
+            except Exception:
+                pass  # If we can't even send an error message, just log it
 
 
 @bot.command(name="sync_commands")
