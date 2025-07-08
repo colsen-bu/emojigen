@@ -2,7 +2,6 @@
 
 import glob
 import os
-
 import aiohttp
 import discord
 from discord import app_commands
@@ -35,9 +34,7 @@ class EmojiBot(commands.Bot):
 
     async def setup_hook(self):
         """Set up the bot by adding commands and syncing to guilds."""
-        self.tree.add_command(generate_emoji_reaction)
-        self.tree.add_command(static_emoji_reaction)
-        self.tree.add_command(browse_static_emojis)
+        # Commands will be added after bot initialization
 
         # If GUILD_ID is specified, sync to that guild immediately (for testing)
         if GUILD_ID and GUILD_ID.strip():
@@ -758,17 +755,18 @@ async def browse_static_emojis(interaction: discord.Interaction, query: str = ""
         )
 
     embed.set_footer(
-        text="Right-click a message and select 'Static Emoji Reaction' to react with these emojis!"
+        text="Right-click a message and select 'Static Emoji Reaction' "
+        "to react with these emojis!"
     )
 
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-# Add the slash commands to the bot
-def setup(bot):
-    """Add slash commands to the bot."""
-    bot.tree.add_command(generate_emoji)
-    bot.tree.add_command(browse_static_emojis)
+# Register all commands with the bot
+bot.tree.add_command(generate_emoji_reaction)
+bot.tree.add_command(static_emoji_reaction)
+bot.tree.add_command(generate_emoji)
+bot.tree.add_command(browse_static_emojis)
 
 
 if __name__ == "__main__":
