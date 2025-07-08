@@ -146,7 +146,7 @@ async def add_emoji_reaction(
         try:
             await interaction.response.defer(ephemeral=True)
 
-            view = EmojiSelectionView(target_message=message)
+            view = EmojiSelectionView(target_message=message, original_interaction=interaction)
             embed = discord.Embed(
                 title="🎭 Add Emoji Reaction",
                 description="Choose how you want to add an emoji reaction:",
@@ -159,7 +159,7 @@ async def add_emoji_reaction(
             # If defer fails due to unknown interaction, try direct response
             print("⚠️ Context menu defer failed, attempting direct response")
 
-            view = EmojiSelectionView(target_message=message)
+            view = EmojiSelectionView(target_message=message, original_interaction=interaction)
             embed = discord.Embed(
                 title="🎭 Add Emoji Reaction",
                 description="Choose how you want to add an emoji reaction:",
@@ -195,10 +195,11 @@ async def add_emoji_reaction(
 class EmojiSelectionView(discord.ui.View):
     """View for selecting between generating or using static emojis."""
 
-    def __init__(self, target_message: discord.Message):
+    def __init__(self, target_message: discord.Message, original_interaction=None):
         """Initialize the emoji selection view for the target message."""
         super().__init__(timeout=300)  # 5 minute timeout
         self.target_message = target_message
+        self.original_interaction = original_interaction
 
     @discord.ui.button(label="🎨 Generate New Emoji", style=discord.ButtonStyle.primary)
     async def generate_emoji(
@@ -234,7 +235,7 @@ class EmojiSelectionView(discord.ui.View):
 
             await interaction.response.send_modal(
                 StaticEmojiSearchModal(
-                    target_message=self.target_message, original_interaction=interaction
+                    target_message=self.target_message, original_interaction=self.original_interaction
                 )
             )
         except discord.NotFound:
@@ -647,21 +648,10 @@ class StaticEmojiSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         """Handle emoji selection."""
         try:
-            # Check if interaction has already been responded to
-            if interaction.response.is_done():
-                print("⚠️ Static emoji selection interaction already responded to")
-                return
-
-            try:
-                await interaction.response.defer(thinking=True, ephemeral=True)
-            except discord.NotFound:
-                print(
-                    "⚠️ Static emoji selection defer failed due to unknown interaction"
-                )
-                return
-            except Exception as e:
-                print(f"❌ Static emoji selection defer failed: {e}")
-                return
+            # Don't defer this interaction - we'll edit the original one
+            # Just acknowledge this interaction to prevent timeout
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
 
             selected_file = self.values[0]
             file_path = os.path.join(STATIC_FOLDER, selected_file)
@@ -821,16 +811,7 @@ class StaticEmojiSelect(discord.ui.Select):
                         embed=None,
                         view=None,
                     )
-                elif not interaction.response.is_done():
-                    await interaction.response.send_message(
-                        "❌ An error occurred while adding the static emoji. Please try again.",
-                        ephemeral=True,
-                    )
-                else:
-                    await interaction.followup.send(
-                        "❌ An error occurred while adding the static emoji. Please try again.",
-                        ephemeral=True,
-                    )
+                # Don't send new messages if we don't have original interaction
             except Exception:
                 pass  # If we can't even send an error message, just log it
 
@@ -855,21 +836,10 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
     async def on_submit(self, interaction: discord.Interaction):
         """Handle search submission."""
         try:
-            # Check if interaction has already been responded to
-            if interaction.response.is_done():
-                print("⚠️ Static emoji search modal interaction already responded to")
-                return
-
-            try:
-                await interaction.response.defer(thinking=True, ephemeral=True)
-            except discord.NotFound:
-                print(
-                    "⚠️ Static emoji search modal defer failed due to unknown interaction"
-                )
-                return
-            except Exception as e:
-                print(f"❌ Static emoji search modal defer failed: {e}")
-                return
+            # Don't defer this interaction - we'll edit the original one
+            # Just acknowledge this interaction to prevent timeout
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
 
             query = self.search_query.value.strip()
 
@@ -920,16 +890,7 @@ class StaticEmojiSearchModal(discord.ui.Modal, title="Search Static Emojis"):
                         embed=None,
                         view=None,
                     )
-                elif not interaction.response.is_done():
-                    await interaction.response.send_message(
-                        "❌ An error occurred while searching for static emojis. Please try again.",
-                        ephemeral=True,
-                    )
-                else:
-                    await interaction.followup.send(
-                        "❌ An error occurred while searching for static emojis. Please try again.",
-                        ephemeral=True,
-                    )
+                # Don't send new messages if we don't have original interaction
             except Exception:
                 pass  # If we can't even send an error message, just log it
 
