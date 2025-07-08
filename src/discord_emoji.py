@@ -470,18 +470,41 @@ class EmojiPromptModal(discord.ui.Modal, title="Generate Emoji Reaction"):
 
 def get_static_emoji_files():
     """Get list of static emoji files from the static folder."""
+    global STATIC_FOLDER  # Declare global at the beginning
+    
     print(f"🔍 Searching for static files in: {STATIC_FOLDER}")
+    print(f"🔍 Current working directory: {os.getcwd()}")
+    print(f"🔍 Directory contents: {os.listdir('.')}")
+
     if not os.path.exists(STATIC_FOLDER):
-        print("❌ Static folder does not exist.")
-        return []
+        print(f"❌ Static folder does not exist at: {STATIC_FOLDER}")
+        # Try alternative paths
+        alternative_paths = [
+            os.path.join(os.getcwd(), "static"),
+            "/app/static",
+            os.path.abspath("static"),
+        ]
+        for alt_path in alternative_paths:
+            print(f"🔍 Trying alternative path: {alt_path}")
+            if os.path.exists(alt_path):
+                print(f"✅ Found static folder at: {alt_path}")
+                STATIC_FOLDER = alt_path
+                break
+        else:
+            print("❌ No static folder found in any location.")
+            return []
 
     # Support common image formats
     patterns = ["*.png", "*.jpg", "*.jpeg", "*.gif"]
     files = []
     for pattern in patterns:
-        files.extend(glob.glob(os.path.join(STATIC_FOLDER, pattern)))
+        pattern_files = glob.glob(os.path.join(STATIC_FOLDER, pattern))
+        print(f"🔍 Pattern {pattern} found {len(pattern_files)} files")
+        files.extend(pattern_files)
 
-    print(f"✅ Found {len(files)} static files.")
+    print(f"✅ Found {len(files)} static files total.")
+    if files:
+        print(f"📁 Sample files: {files[:5]}")  # Show first 5 files
 
     # Sort files and return just the filenames
     return sorted([os.path.basename(f) for f in files])
@@ -718,9 +741,13 @@ class StaticEmojiSelect(discord.ui.Select):
             selected_file = self.values[0]
             file_path = os.path.join(STATIC_FOLDER, selected_file)
 
+            print(f"🔍 Looking for selected file: {selected_file}")
+            print(f"🔍 Full file path: {file_path}")
+            print(f"🔍 File exists: {os.path.exists(file_path)}")
+
             if not os.path.exists(file_path):
                 return await interaction.followup.send(
-                    "❌ Selected emoji file not found.", ephemeral=True
+                    f"❌ Selected emoji file not found at: {file_path}", ephemeral=True
                 )
 
             # Find appropriate response channel
